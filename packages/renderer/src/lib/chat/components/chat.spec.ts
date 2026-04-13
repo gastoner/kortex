@@ -75,6 +75,17 @@ describe('findModel', () => {
     expect(result).toBeUndefined();
   });
 
+  test('should return undefined when type does not match', () => {
+    const target: ModelInfo = {
+      providerId: 'ollama',
+      connectionName: 'local',
+      label: 'llama3',
+      type: 'cloud',
+    };
+    const result = findModel(models, target);
+    expect(result).toBeUndefined();
+  });
+
   test('should return undefined when models list is empty', () => {
     const target: ModelInfo = { providerId: 'ollama', connectionName: 'local', label: 'llama3', type: 'local' };
     const result = findModel([], target);
