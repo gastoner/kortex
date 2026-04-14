@@ -702,7 +702,7 @@ test('listSkillFolders should include built-in kaiden folder after init', async 
 test('registerSkillFolder should discover skills from its directory after init', async () => {
   const EXTRA_DIR = resolve('/extra/skills');
   mockDirectoryWithSkills(
-    [{ name: 'extra-skill', content: `---\nname: extra-skill\ndescription: An extra skill\n---\n# Extra\n` }],
+    [{ name: 'extra-skill', content: '---\nname: extra-skill\ndescription: An extra skill\n---\n# Extra\n' }],
     EXTRA_DIR,
   );
 
@@ -723,7 +723,7 @@ test('registerSkillFolder should discover skills from its directory after init',
 test('disposing a skill folder should remove its skills from the list', async () => {
   const EXTRA_DIR = resolve('/extra/skills');
   mockDirectoryWithSkills(
-    [{ name: 'extra-skill', content: `---\nname: extra-skill\ndescription: An extra skill\n---\n# Extra\n` }],
+    [{ name: 'extra-skill', content: '---\nname: extra-skill\ndescription: An extra skill\n---\n# Extra\n' }],
     EXTRA_DIR,
   );
 
