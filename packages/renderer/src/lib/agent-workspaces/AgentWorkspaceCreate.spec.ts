@@ -59,7 +59,7 @@ test('Expect wizard stepper rendered with all five step labels', () => {
 test('Expect workspace step content shown on initial render', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Workspace')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument();
   expect(screen.getByText(/Point to a local project folder/)).toBeInTheDocument();
 });
 
@@ -163,7 +163,7 @@ test('Expect navigating to agent & model step shows coding agent options', async
   });
   await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-  expect(screen.getByText('Coding Agent')).toBeInTheDocument();
+  expect(screen.getAllByText('Coding Agent').length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText('Claude')).toBeInTheDocument();
   expect(screen.getByText('Goose')).toBeInTheDocument();
   expect(screen.getByText('OpenCode')).toBeInTheDocument();

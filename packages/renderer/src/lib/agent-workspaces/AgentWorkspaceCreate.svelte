@@ -277,21 +277,22 @@ async function startWorkspace(): Promise<void> {
               <span>Workspace will run in a secured sandbox environment</span>
             </div>
             <div class="flex gap-3">
-              <Button onclick={cancel}>Cancel</Button>
-              {#if currentStepIndex > 0}
+              {#if currentStepId === 'workspace'}
+                <Button onclick={cancel}>Cancel</Button>
+                <Button type="secondary" disabled={!isCurrentStepComplete || creating} onclick={startWorkspace}>
+                  {creating ? 'Creating...' : 'Use All Defaults and Create Workspace'}
+                </Button>
+                <Button disabled={!isCurrentStepComplete} onclick={goNext}>Continue</Button>
+              {:else if isLastStep}
                 <Button onclick={goBack}>Back</Button>
-              {/if}
-              {#if isLastStep}
+                <Button onclick={cancel}>Cancel</Button>
                 <Button disabled={creating} onclick={startWorkspace}>
                   {creating ? 'Creating...' : 'Start Workspace'}
                 </Button>
               {:else}
-                {#if currentStepId === 'workspace'}
-                  <Button type="secondary" disabled={!isCurrentStepComplete || creating} onclick={startWorkspace}>
-                    {creating ? 'Creating...' : 'Start Workspace'}
-                  </Button>
-                {/if}
-                <Button disabled={!isCurrentStepComplete} onclick={goNext}>Next</Button>
+                <Button onclick={goBack}>Back</Button>
+                <Button onclick={cancel}>Cancel</Button>
+                <Button disabled={!isCurrentStepComplete} onclick={goNext}>Continue</Button>
               {/if}
             </div>
           </div>
