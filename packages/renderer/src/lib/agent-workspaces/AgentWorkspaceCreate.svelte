@@ -102,7 +102,7 @@ let mcpItems: ScrollableCardItem[] = $derived(
 let sessionName = $state('');
 let sourcePath = $state('');
 let description = $state('');
-let selectedAgent = $state('goose');
+let selectedAgent = $state('opencode');
 let selectedFileAccess = $state('workspace');
 let selectedSkillIds = $state<string[]>([]);
 let selectedMcpIds = $state<string[]>([]);
@@ -126,7 +126,6 @@ $effect(() => {
 
 // --- Wizard navigation ---
 let currentStepIndex = $state(0);
-let creating = $state(false);
 let error = $state('');
 
 let currentStepId = $derived(wizardSteps[currentStepIndex]?.id ?? '');
@@ -197,19 +196,16 @@ function cancel(): void {
 async function startWorkspace(): Promise<void> {
   if (!sessionName.trim() || !sourcePath.trim()) return;
 
-  creating = true;
-  error = '';
+  handleNavigation({ page: NavigationPage.AGENT_WORKSPACES });
+
   try {
     await window.createAgentWorkspace({
       sourcePath,
       agent: selectedAgent,
       name: sessionName,
     });
-    handleNavigation({ page: NavigationPage.AGENT_WORKSPACES });
   } catch (err: unknown) {
-    error = err instanceof Error ? err.message : String(err);
-  } finally {
-    creating = false;
+    console.error('Failed to create agent workspace', err);
   }
 }
 </script>
@@ -273,25 +269,24 @@ async function startWorkspace(): Promise<void> {
           <!-- Footer actions -->
           <div class="flex items-center justify-between pt-4 border-t border-[var(--pd-content-card-border)]">
             <div class="flex items-center gap-3 text-sm text-[var(--pd-content-card-text)] opacity-70">
-              <Icon icon={faLock} size="sm" />
-              <span>Workspace will run in a secured sandbox environment</span>
+              <Icon icon={faLock} size="sm" class="text-green-400" />
+              <span>Step {currentStepIndex + 1} of {wizardSteps.length} · Workspace will run in a secured sandbox environment</span>
             </div>
-            <div class="flex gap-3">
-              {#if currentStepId === 'workspace'}
-                <Button onclick={cancel}>Cancel</Button>
-                <Button type="secondary" disabled={!isCurrentStepComplete || creating} onclick={startWorkspace}>
-                  {creating ? 'Creating...' : 'Use All Defaults and Create Workspace'}
-                </Button>
-                <Button disabled={!isCurrentStepComplete} onclick={goNext}>Continue</Button>
-              {:else if isLastStep}
+            <div class="flex flex-wrap items-center justify-end gap-3">
+              {#if currentStepIndex > 0}
                 <Button onclick={goBack}>Back</Button>
-                <Button onclick={cancel}>Cancel</Button>
-                <Button disabled={creating} onclick={startWorkspace}>
-                  {creating ? 'Creating...' : 'Start Workspace'}
+              {/if}
+              <Button onclick={cancel}>Cancel</Button>
+              {#if currentStepId === 'workspace'}
+                <Button type="secondary" disabled={!isCurrentStepComplete} onclick={startWorkspace}>
+                  Use all defaults and create workspace
+                </Button>
+              {/if}
+              {#if isLastStep}
+                <Button onclick={startWorkspace}>
+                  Start Workspace
                 </Button>
               {:else}
-                <Button onclick={goBack}>Back</Button>
-                <Button onclick={cancel}>Cancel</Button>
                 <Button disabled={!isCurrentStepComplete} onclick={goNext}>Continue</Button>
               {/if}
             </div>

@@ -22,6 +22,14 @@ let {
   descriptionOpen = $bindable(),
   onBrowseSource,
 }: Props = $props();
+
+function markNameEdited(): void {
+  nameManuallyEdited = true;
+}
+
+function toggleDescription(): void {
+  descriptionOpen = !descriptionOpen;
+}
 </script>
 
 <h2 class="text-lg font-semibold text-[var(--pd-modal-text)] mb-1">Workspace</h2>
@@ -57,14 +65,14 @@ let {
       bind:value={sessionName}
       placeholder="e.g., Frontend Refactoring"
       class="w-full"
-      oninput={(): boolean => (nameManuallyEdited = true)}
+      oninput={markNameEdited}
     />
   </div>
 
   <div class="rounded-xl border border-[var(--pd-content-card-border)]/85 bg-[var(--pd-content-card-bg)]/35 overflow-hidden">
     <button
       class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--pd-modal-text)] hover:bg-[var(--pd-content-card-inset-bg)]/50 transition-colors cursor-pointer"
-      onclick={(): boolean => (descriptionOpen = !descriptionOpen)}>
+      onclick={toggleDescription}>
       <span>
         Description <span class="text-xs font-normal opacity-50">(optional)</span>
       </span>
