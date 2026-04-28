@@ -99,42 +99,42 @@ test('Expect workspace name auto-suggested from source path', async () => {
   expect((screen.getByPlaceholderText('e.g., Frontend Refactoring') as HTMLInputElement).value).toBe('my-project');
 });
 
-test('Expect Next button rendered on step 1', () => {
+test('Expect Continue button rendered on step 1', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
 });
 
-test('Expect Next button disabled when source is empty', () => {
+test('Expect Continue button disabled when source is empty', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
 });
 
-test('Expect Next button enabled when name and source are filled', async () => {
+test('Expect Continue button enabled when name and source are filled', async () => {
   render(AgentWorkspaceCreate);
 
   await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
     target: { value: '/home/user/my-repo' },
   });
 
-  expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Continue' })).not.toBeDisabled();
 });
 
-test('Expect Start Workspace quick-create button on step 1', async () => {
+test('Expect use-all-defaults button on step 1', async () => {
   render(AgentWorkspaceCreate);
 
   await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
     target: { value: '/home/user/my-repo' },
   });
 
-  expect(screen.getByRole('button', { name: 'Start Workspace' })).not.toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Use all defaults and create workspace' })).not.toBeDisabled();
 });
 
-test('Expect Start Workspace button disabled on step 1 when source is empty', () => {
+test('Expect use-all-defaults button disabled on step 1 when source is empty', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByRole('button', { name: 'Start Workspace' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Use all defaults and create workspace' })).toBeDisabled();
 });
 
 test('Expect Cancel button always visible', () => {
@@ -149,10 +149,10 @@ test('Expect Back button not visible on first step', () => {
   expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
 });
 
-test('Expect sandbox security message displayed', () => {
+test('Expect sandbox security message displayed with step counter', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Workspace will run in a secured sandbox environment')).toBeInTheDocument();
+  expect(screen.getByText(/Step 1 of 5 · Workspace will run in a secured sandbox environment/)).toBeInTheDocument();
 });
 
 test('Expect navigating to agent & model step shows coding agent options', async () => {
@@ -161,7 +161,7 @@ test('Expect navigating to agent & model step shows coding agent options', async
   await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
     target: { value: '/home/user/my-repo' },
   });
-  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
   expect(screen.getAllByText('Coding Agent').length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText('Claude')).toBeInTheDocument();
@@ -178,11 +178,11 @@ test('Expect Start Workspace button visible on last step', async () => {
   });
 
   for (let i = 0; i < wizardStepCount - 1; i++) {
-    await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   }
 
   expect(screen.getByRole('button', { name: 'Start Workspace' })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
 });
 
 test('Expect custom paths section shown when Custom Paths selected on filesystem step', async () => {
@@ -192,9 +192,9 @@ test('Expect custom paths section shown when Custom Paths selected on filesystem
     target: { value: '/home/user/my-repo' },
   });
   // Workspace → Agent & Model → Tools & Secrets → File System
-  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
   await fireEvent.click(screen.getByRole('button', { name: 'Custom Paths' }));
 
