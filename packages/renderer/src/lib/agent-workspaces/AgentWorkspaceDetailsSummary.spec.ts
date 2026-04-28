@@ -126,8 +126,9 @@ test('Expect environment section is hidden when configuration has no environment
   expect(screen.queryByText('Environment')).not.toBeInTheDocument();
 });
 
-test('Expect workspace section heading is always displayed', () => {
+test('Expect component renders without error when workspace is undefined', () => {
   render(AgentWorkspaceDetailsSummary, { workspaceSummary: undefined, configuration: {} });
 
-  expect(screen.getByText('Workspace')).toBeInTheDocument();
+  expect(screen.queryByText('Project')).not.toBeInTheDocument();
+  expect(screen.queryByText('Agent')).not.toBeInTheDocument();
 });
