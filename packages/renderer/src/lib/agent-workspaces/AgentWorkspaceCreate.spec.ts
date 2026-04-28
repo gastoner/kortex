@@ -45,100 +45,108 @@ test('Expect page title displayed', () => {
   expect(screen.getByText('Create Coding Agent Workspace')).toBeInTheDocument();
 });
 
-test('Expect session details section rendered', () => {
+test('Expect wizard stepper rendered with all five step labels', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Session Details')).toBeInTheDocument();
+  expect(screen.getByRole('navigation', { name: 'Wizard progress' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Workspace step' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Agent & Model step' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Tools & Secrets step' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'File System step' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Networking step' })).toBeInTheDocument();
 });
 
-test('Expect session name input rendered', () => {
+test('Expect workspace step content shown on initial render', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByPlaceholderText('e.g., Frontend Refactoring')).toBeInTheDocument();
+  expect(screen.getByText('Workspace')).toBeInTheDocument();
+  expect(screen.getByText(/Point to a local project folder/)).toBeInTheDocument();
 });
 
-test('Expect working directory input rendered', () => {
+test('Expect source input rendered with correct placeholder', () => {
   render(AgentWorkspaceCreate);
 
   expect(screen.getByPlaceholderText('/path/to/project')).toBeInTheDocument();
 });
 
-test('Expect coding agent options displayed', () => {
+test('Expect workspace name input rendered', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Claude')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Cursor' })).toBeInTheDocument();
-  expect(screen.getByText('Goose')).toBeInTheDocument();
-  expect(screen.getByText('OpenCode')).toBeInTheDocument();
+  expect(screen.getByPlaceholderText('e.g., Frontend Refactoring')).toBeInTheDocument();
 });
 
-test('Expect agent badges displayed', () => {
+test('Expect description section is collapsed by default', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Anthropic')).toBeInTheDocument();
-  expect(screen.getByText('Block')).toBeInTheDocument();
+  expect(screen.queryByPlaceholderText('Short note for your team (optional)')).not.toBeInTheDocument();
 });
 
-test('Expect file system access section rendered', () => {
+test('Expect description section expands when toggle clicked', async () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('File System Access')).toBeInTheDocument();
+  await fireEvent.click(screen.getByRole('button', { name: /Description/ }));
+
+  expect(screen.getByPlaceholderText('Short note for your team (optional)')).toBeInTheDocument();
 });
 
-test('Expect file access options displayed', () => {
+test('Expect workspace name auto-suggested from source path', async () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.getByText('Working Directory Only')).toBeInTheDocument();
-  expect(screen.getByText('Home Directory')).toBeInTheDocument();
-  expect(screen.getByText('Custom Paths')).toBeInTheDocument();
-  expect(screen.getByText('Full System Access')).toBeInTheDocument();
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-project' },
+  });
+
+  expect((screen.getByPlaceholderText('e.g., Frontend Refactoring') as HTMLInputElement).value).toBe('my-project');
 });
 
-test('Expect Start Workspace button disabled when session name is empty', () => {
+test('Expect Next button rendered on step 1', () => {
   render(AgentWorkspaceCreate);
 
-  const startButton = screen.getByRole('button', { name: 'Start Workspace' });
-  expect(startButton).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
 });
 
-test('Expect Cancel button rendered', () => {
+test('Expect Next button disabled when source is empty', () => {
+  render(AgentWorkspaceCreate);
+
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+});
+
+test('Expect Next button enabled when name and source are filled', async () => {
+  render(AgentWorkspaceCreate);
+
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-repo' },
+  });
+
+  expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled();
+});
+
+test('Expect Start Workspace quick-create button on step 1', async () => {
+  render(AgentWorkspaceCreate);
+
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-repo' },
+  });
+
+  expect(screen.getByRole('button', { name: 'Start Workspace' })).not.toBeDisabled();
+});
+
+test('Expect Start Workspace button disabled on step 1 when source is empty', () => {
+  render(AgentWorkspaceCreate);
+
+  expect(screen.getByRole('button', { name: 'Start Workspace' })).toBeDisabled();
+});
+
+test('Expect Cancel button always visible', () => {
   render(AgentWorkspaceCreate);
 
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
 });
 
-test('Expect skills section hidden when no skills available', () => {
+test('Expect Back button not visible on first step', () => {
   render(AgentWorkspaceCreate);
 
-  expect(screen.queryByText('Skills')).not.toBeInTheDocument();
-});
-
-test('Expect MCP servers section hidden when no servers available', () => {
-  render(AgentWorkspaceCreate);
-
-  expect(screen.queryByText('MCP Servers')).not.toBeInTheDocument();
-});
-
-test('Expect skills section displayed when skills available', () => {
-  vi.mocked(skillsStore).skillInfos = writable<SkillInfo[]>([
-    { name: 'Docker Skill', description: 'Build containers' } as SkillInfo,
-  ]);
-
-  render(AgentWorkspaceCreate);
-
-  expect(screen.getByText('Skills')).toBeInTheDocument();
-  expect(screen.getByText('Docker Skill')).toBeInTheDocument();
-});
-
-test('Expect MCP section displayed when servers available', () => {
-  vi.mocked(mcpStore).mcpRemoteServerInfos = writable<MCPRemoteServerInfo[]>([
-    { id: 'mcp-1', name: 'My MCP Server', description: 'A test server' } as MCPRemoteServerInfo,
-  ]);
-
-  render(AgentWorkspaceCreate);
-
-  expect(screen.getByText('MCP Servers')).toBeInTheDocument();
-  expect(screen.getByText('My MCP Server')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
 });
 
 test('Expect sandbox security message displayed', () => {
@@ -147,18 +155,51 @@ test('Expect sandbox security message displayed', () => {
   expect(screen.getByText('Workspace will run in a secured sandbox environment')).toBeInTheDocument();
 });
 
-test('Expect custom paths section shown when Custom Paths selected', async () => {
+test('Expect navigating to agent & model step shows coding agent options', async () => {
   render(AgentWorkspaceCreate);
 
-  const customPathsButton = screen.getByRole('button', { name: 'Custom Paths' });
-  await fireEvent.click(customPathsButton);
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-repo' },
+  });
+  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+  expect(screen.getByText('Coding Agent')).toBeInTheDocument();
+  expect(screen.getByText('Claude')).toBeInTheDocument();
+  expect(screen.getByText('Goose')).toBeInTheDocument();
+  expect(screen.getByText('OpenCode')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+});
+
+test('Expect Start Workspace button visible on last step', async () => {
+  render(AgentWorkspaceCreate);
+
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-repo' },
+  });
+
+  for (let i = 0; i < wizardStepCount - 1; i++) {
+    await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  }
+
+  expect(screen.getByRole('button', { name: 'Start Workspace' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
+});
+
+test('Expect custom paths section shown when Custom Paths selected on filesystem step', async () => {
+  render(AgentWorkspaceCreate);
+
+  await fireEvent.input(screen.getByPlaceholderText('/path/to/project'), {
+    target: { value: '/home/user/my-repo' },
+  });
+  // Workspace → Agent & Model → Tools & Secrets → File System
+  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Custom Paths' }));
 
   expect(screen.getByPlaceholderText('/path/to/allowed/directory')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Add Another Path' })).toBeInTheDocument();
 });
 
-test('Expect custom paths section hidden for non-custom file access', () => {
-  render(AgentWorkspaceCreate);
-
-  expect(screen.queryByPlaceholderText('/path/to/allowed/directory')).not.toBeInTheDocument();
-});
+const wizardStepCount = 5;

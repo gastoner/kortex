@@ -1,35 +1,33 @@
 <script lang="ts">
 import {
   faCode,
-  faFolder,
-  faFolderOpen,
   faGears,
   faHome,
   faLock,
   faO,
-  faPlus,
   faRobot,
-  faServer,
-  faShieldHalved,
   faTriangleExclamation,
   faWrench,
 } from '@fortawesome/free-solid-svg-icons';
-import { Button, Input } from '@podman-desktop/ui-svelte';
+import { Button } from '@podman-desktop/ui-svelte';
 import { Icon } from '@podman-desktop/ui-svelte/icons';
 import { toast } from 'svelte-sonner';
 
-import { Textarea } from '/@/lib/chat/components/ui/textarea';
-import CardSelector from '/@/lib/ui/CardSelector.svelte';
+import AgentWorkspaceCreateStepAgentModel from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepAgentModel.svelte';
+import AgentWorkspaceCreateStepFileSystem from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
+import AgentWorkspaceCreateStepNetworking from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepNetworking.svelte';
+import AgentWorkspaceCreateStepToolsSecrets from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepToolsSecrets.svelte';
+import AgentWorkspaceCreateStepWorkspace from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepWorkspace.svelte';
+import type { CardSelectorOption } from '/@/lib/ui/CardSelector.svelte';
 import FormPage from '/@/lib/ui/FormPage.svelte';
 import type { ScrollableCardItem } from '/@/lib/ui/ScrollableCardSelector.svelte';
-import ScrollableCardSelector from '/@/lib/ui/ScrollableCardSelector.svelte';
+import WizardStepper from '/@/lib/ui/WizardStepper.svelte';
 import { handleNavigation } from '/@/navigation';
 import { mcpRemoteServerInfos } from '/@/stores/mcp-remote-servers';
 import { skillInfos } from '/@/stores/skills';
 import { NavigationPage } from '/@api/navigation-page';
 
-// Mock coding agents until real provider connections are available
-const agentOptions = [
+const agentOptions: CardSelectorOption[] = [
   {
     title: 'OpenCode',
     badge: 'Anomaly',
@@ -54,13 +52,12 @@ const agentOptions = [
   },
 ];
 
-// --- File access options for CardSelector ---
-const fileAccessOptions = [
+const fileAccessOptions: CardSelectorOption[] = [
   {
     title: 'Working Directory Only',
     badge: 'Recommended',
     value: 'workspace',
-    icon: faFolder,
+    icon: faGears,
     description: 'Restrict access to the project working directory',
   },
   {
@@ -86,24 +83,69 @@ const fileAccessOptions = [
   },
 ];
 
-// Derive card items for ScrollableCardSelector
+const wizardSteps = [
+  { id: 'workspace', title: 'Workspace' },
+  { id: 'agent-model', title: 'Agent & Model' },
+  { id: 'tools-secrets', title: 'Tools & Secrets' },
+  { id: 'filesystem', title: 'File System' },
+  { id: 'networking', title: 'Networking' },
+];
+
 let skillItems: ScrollableCardItem[] = $derived(
   $skillInfos.map(s => ({ id: s.name, name: s.name, description: s.description })),
 );
-
 let mcpItems: ScrollableCardItem[] = $derived(
   $mcpRemoteServerInfos.map(m => ({ id: m.id, name: m.name, description: m.description })),
 );
 
 // --- Form state ---
 let sessionName = $state('');
-let workingDir = $state('');
+let sourcePath = $state('');
 let description = $state('');
-let selectedAgent = $state('');
+let selectedAgent = $state('goose');
 let selectedFileAccess = $state('workspace');
 let selectedSkillIds = $state<string[]>([]);
 let selectedMcpIds = $state<string[]>([]);
 let customPaths = $state<string[]>(['']);
+
+// --- Step 1 UI state ---
+let nameManuallyEdited = $state(false);
+let descriptionOpen = $state(false);
+
+// Auto-suggest workspace name from the last path segment
+$effect(() => {
+  if (nameManuallyEdited) return;
+  const src = sourcePath
+    .trim()
+    .replace(/\.git$/, '')
+    .replace(/\/$/, '');
+  if (!src) return;
+  const last = src.split(/[/:]/).filter(Boolean).at(-1) ?? '';
+  if (last) sessionName = last;
+});
+
+// --- Wizard navigation ---
+let currentStepIndex = $state(0);
+let creating = $state(false);
+let error = $state('');
+
+let currentStepId = $derived(wizardSteps[currentStepIndex]?.id ?? '');
+let isLastStep = $derived(currentStepIndex === wizardSteps.length - 1);
+let isCurrentStepComplete = $derived(
+  currentStepId === 'workspace' ? sessionName.trim() !== '' && sourcePath.trim() !== '' : true,
+);
+
+function goNext(): void {
+  if (currentStepIndex < wizardSteps.length - 1) currentStepIndex++;
+}
+
+function goBack(): void {
+  if (currentStepIndex > 0) currentStepIndex--;
+}
+
+function handleStepClick(index: number): void {
+  currentStepIndex = index;
+}
 
 function addCustomPath(): void {
   customPaths = [...customPaths, ''];
@@ -120,14 +162,9 @@ function updateCustomPath(index: number, value: string): void {
 
 async function handleBrowseCustomPath(index: number): Promise<void> {
   try {
-    const result = await window.openDialog({
-      title: 'Select a directory',
-      selectors: ['openDirectory'],
-    });
+    const result = await window.openDialog({ title: 'Select a directory', selectors: ['openDirectory'] });
     const selected = result?.[0];
-    if (selected) {
-      updateCustomPath(index, selected);
-    }
+    if (selected) updateCustomPath(index, selected);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     error = message;
@@ -135,15 +172,16 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
   }
 }
 
-async function handleBrowseFolder(): Promise<void> {
+async function handleBrowseSource(): Promise<void> {
   try {
-    const result = await window.openDialog({
-      title: 'Select a working directory',
-      selectors: ['openDirectory'],
-    });
+    const result = await window.openDialog({ title: 'Select a working directory', selectors: ['openDirectory'] });
     const selected = result?.[0];
     if (selected) {
-      workingDir = selected;
+      sourcePath = selected;
+      if (!nameManuallyEdited) {
+        const lastSegment = selected.replace(/\/$/, '').split('/').at(-1) ?? '';
+        if (lastSegment) sessionName = lastSegment;
+      }
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -156,29 +194,14 @@ function cancel(): void {
   handleNavigation({ page: NavigationPage.AGENT_WORKSPACES });
 }
 
-let creating = $state(false);
-let error = $state('');
-
 async function startWorkspace(): Promise<void> {
-  if (!sessionName.trim() || !workingDir.trim() || !selectedAgent) return;
-
-  const config = {
-    name: sessionName,
-    workingDir,
-    description,
-    agent: selectedAgent,
-    fileAccess: selectedFileAccess,
-    customPaths: selectedFileAccess === 'custom' ? customPaths.filter(p => p.trim()) : undefined,
-    skills: selectedSkillIds,
-    mcpServers: selectedMcpIds,
-  };
-  console.log('Starting workspace with config:', config);
+  if (!sessionName.trim() || !sourcePath.trim()) return;
 
   creating = true;
   error = '';
   try {
     await window.createAgentWorkspace({
-      sourcePath: workingDir,
+      sourcePath,
       agent: selectedAgent,
       name: sessionName,
     });
@@ -198,137 +221,50 @@ async function startWorkspace(): Promise<void> {
         <div class="flex flex-col px-6 max-w-4xl mx-auto space-y-5">
 
           <!-- Page header -->
-          <div>
-            <h1 class="text-2xl font-bold text-[var(--pd-modal-text)]">Create Coding Agent Workspace</h1>
-            <p class="text-sm text-[var(--pd-content-card-text)] opacity-70 mt-2">
-              Configure your coding agent with the skills, tools, and access permissions it needs.
-              The session will run in a secure sandbox environment.
+          <div class="mb-2">
+            <span class="text-xs font-semibold uppercase tracking-widest text-[var(--pd-label-primary-text)] bg-[var(--pd-label-primary-bg)] px-2 py-0.5 rounded mb-2 inline-block">
+              Coding Agent
+            </span>
+            <h1 class="text-2xl font-bold text-[var(--pd-modal-text)] mb-1">Create Coding Agent Workspace</h1>
+            <p class="text-sm text-[var(--pd-content-card-text)] opacity-70 max-w-2xl leading-relaxed">
+              Add your code location first, then tune agent, tools, and sandbox access…
             </p>
           </div>
 
-          <!-- Session Details -->
-          <section class="rounded-lg border border-[var(--pd-content-card-border)] bg-[var(--pd-content-card-inset-bg)] p-6">
-            <div class="flex items-center gap-4 mb-5">
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--pd-label-primary-bg)] text-[var(--pd-label-primary-text)]">
-                <Icon icon={faCode} size="lg" />
-              </div>
-              <div class="flex flex-col">
-                <span class="text-lg font-semibold text-[var(--pd-modal-text)]">Session Details</span>
-                <span class="text-xs text-[var(--pd-content-card-text)] opacity-70">Give your session a name and select the coding agent</span>
-              </div>
-            </div>
+          <!-- Stepper -->
+          <WizardStepper steps={wizardSteps} currentIndex={currentStepIndex} onStepClick={handleStepClick} />
 
-            <div class="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <span class="block text-sm font-semibold text-[var(--pd-modal-text)] mb-2">Session Name</span>
-                <Input bind:value={sessionName} placeholder="e.g., Frontend Refactoring" class="w-full" />
-              </div>
-              <div>
-                <span class="block text-sm font-semibold text-[var(--pd-modal-text)] mb-2">Working Directory</span>
-                <div class="flex flex-row gap-2 items-center">
-                  <Input bind:value={workingDir} placeholder="/path/to/project" class="grow" />
-                  <Button onclick={handleBrowseFolder} aria-label="Browse for folder" icon={faFolderOpen} />
-                </div>
-              </div>
-            </div>
-
-            <div class="mb-5">
-              <span class="block text-sm font-semibold text-[var(--pd-modal-text)] mb-2">Description (optional)</span>
-              <Textarea
-                bind:value={description}
-                placeholder="Describe what this session will accomplish..."
-                rows={2}
-                class="bg-muted min-h-[24px] resize-none rounded-lg !text-sm dark:border-zinc-700"
-              />
-            </div>
-
-            <CardSelector
-              label="Select Coding Agent"
-              options={agentOptions}
-              bind:selected={selectedAgent}
-            />
-          </section>
-
-          <!-- Skills -->
-          {#if skillItems.length > 0}
-            <section class="rounded-lg border border-[var(--pd-content-card-border)] bg-[var(--pd-content-card-inset-bg)] p-6">
-              <div class="flex items-center gap-4 mb-5">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--pd-label-tertiary-bg)] text-[var(--pd-label-tertiary-text)]">
-                  <Icon icon={faWrench} size="lg" />
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-lg font-semibold text-[var(--pd-modal-text)]">Skills</span>
-                  <span class="text-xs text-[var(--pd-content-card-text)] opacity-70">Select the capabilities your agent should have</span>
-                </div>
-              </div>
-
-              <ScrollableCardSelector
-                items={skillItems}
-                bind:selected={selectedSkillIds}
-                placeholder="Search skills..."
-              />
-            </section>
-          {/if}
-
-          <!-- MCP Servers -->
-          {#if mcpItems.length > 0}
-            <section class="rounded-lg border border-[var(--pd-content-card-border)] bg-[var(--pd-content-card-inset-bg)] p-6">
-              <div class="flex items-center gap-4 mb-5">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--pd-label-secondary-bg)] text-[var(--pd-label-secondary-text)]">
-                  <Icon icon={faServer} size="lg" />
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-lg font-semibold text-[var(--pd-modal-text)]">MCP Servers</span>
-                  <span class="text-xs text-[var(--pd-content-card-text)] opacity-70">Connect to Model Context Protocol servers for extended capabilities</span>
-                </div>
-              </div>
-
-              <ScrollableCardSelector
-                items={mcpItems}
-                bind:selected={selectedMcpIds}
-                placeholder="Search MCP servers..."
-              />
-            </section>
-          {/if}
-
-          <!-- File System Access -->
-          <section class="rounded-lg border border-[var(--pd-content-card-border)] bg-[var(--pd-content-card-inset-bg)] p-6">
-            <div class="flex items-center gap-4 mb-5">
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--pd-label-quaternary-bg)] text-[var(--pd-label-quaternary-text)]">
-                <Icon icon={faShieldHalved} size="lg" />
-              </div>
-              <div class="flex flex-col">
-                <span class="text-lg font-semibold text-[var(--pd-modal-text)]">File System Access</span>
-                <span class="text-xs text-[var(--pd-content-card-text)] opacity-70">Define which directories the agent can access on your host system</span>
-              </div>
-            </div>
-
-            <CardSelector
-              label="Access Level"
-              options={fileAccessOptions}
-              bind:selected={selectedFileAccess}
-            />
-
-            {#if selectedFileAccess === 'custom'}
-              <div class="mt-4 p-4 rounded-lg bg-[var(--pd-content-card-inset-bg)]">
-                {#each customPaths as path, index (index)}
-                  <div class="flex gap-3 mb-2 items-center">
-                    <Input
-                      value={path}
-                      placeholder="/path/to/allowed/directory"
-                      class="flex-1 font-mono text-sm"
-                      oninput={(e: Event): void => updateCustomPath(index, (e.target as HTMLInputElement).value)}
-                    />
-                    <Button onclick={(): Promise<void> => handleBrowseCustomPath(index)} aria-label="Browse for directory" icon={faFolderOpen} />
-                    {#if customPaths.length > 1}
-                      <Button class="text-red-400" onclick={(): void => removeCustomPath(index)}>Remove</Button>
-                    {/if}
-                  </div>
-                {/each}
-                <Button class="mt-2" icon={faPlus} onclick={addCustomPath}>Add Another Path</Button>
-              </div>
+          <!-- Step content -->
+          <div class="rounded-xl border border-[var(--pd-content-card-border)] bg-[var(--pd-content-card-inset-bg)] p-6">
+            {#if currentStepId === 'workspace'}
+              <AgentWorkspaceCreateStepWorkspace
+                bind:sourcePath
+                bind:sessionName
+                bind:description
+                bind:nameManuallyEdited
+                bind:descriptionOpen
+                onBrowseSource={handleBrowseSource} />
+            {:else if currentStepId === 'agent-model'}
+              <AgentWorkspaceCreateStepAgentModel {agentOptions} bind:selectedAgent />
+            {:else if currentStepId === 'tools-secrets'}
+              <AgentWorkspaceCreateStepToolsSecrets
+                {skillItems}
+                bind:selectedSkillIds
+                {mcpItems}
+                bind:selectedMcpIds />
+            {:else if currentStepId === 'filesystem'}
+              <AgentWorkspaceCreateStepFileSystem
+                {fileAccessOptions}
+                bind:selectedFileAccess
+                {customPaths}
+                onBrowseCustomPath={handleBrowseCustomPath}
+                onAddCustomPath={addCustomPath}
+                onRemoveCustomPath={removeCustomPath}
+                onUpdateCustomPath={updateCustomPath} />
+            {:else if currentStepId === 'networking'}
+              <AgentWorkspaceCreateStepNetworking />
             {/if}
-          </section>
+          </div>
 
           {#if error}
             <div class="text-sm text-red-400 bg-red-900/20 rounded-lg p-3">{error}</div>
@@ -342,9 +278,21 @@ async function startWorkspace(): Promise<void> {
             </div>
             <div class="flex gap-3">
               <Button onclick={cancel}>Cancel</Button>
-              <Button disabled={!sessionName.trim() || !workingDir.trim() || !selectedAgent || creating} onclick={startWorkspace}>
-                {creating ? 'Creating...' : 'Start Workspace'}
-              </Button>
+              {#if currentStepIndex > 0}
+                <Button onclick={goBack}>Back</Button>
+              {/if}
+              {#if isLastStep}
+                <Button disabled={creating} onclick={startWorkspace}>
+                  {creating ? 'Creating...' : 'Start Workspace'}
+                </Button>
+              {:else}
+                {#if currentStepId === 'workspace'}
+                  <Button type="secondary" disabled={!isCurrentStepComplete || creating} onclick={startWorkspace}>
+                    {creating ? 'Creating...' : 'Start Workspace'}
+                  </Button>
+                {/if}
+                <Button disabled={!isCurrentStepComplete} onclick={goNext}>Next</Button>
+              {/if}
             </div>
           </div>
 
