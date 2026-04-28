@@ -99,8 +99,8 @@ let mcpItems: ScrollableCardItem[] = $derived(
 );
 
 // --- Form state ---
-let sessionName = $state('');
 let sourcePath = $state('');
+let sessionName = $state('');
 let description = $state('');
 let selectedAgent = $state('opencode');
 let selectedFileAccess = $state('workspace');
@@ -112,15 +112,14 @@ let customPaths = $state<string[]>(['']);
 let nameManuallyEdited = $state(false);
 let descriptionOpen = $state(false);
 
-// Auto-suggest workspace name from the last path segment
+function getDefaultSessionName(path: string): string {
+  const normalized = path.trim().replace(/[\\/]+$/, '');
+  return normalized.split(/[\\/]/).filter(Boolean).at(-1) ?? '';
+}
+
 $effect(() => {
   if (nameManuallyEdited) return;
-  const src = sourcePath
-    .trim()
-    .replace(/\.git$/, '')
-    .replace(/\/$/, '');
-  if (!src) return;
-  const last = src.split(/[/:]/).filter(Boolean).at(-1) ?? '';
+  const last = getDefaultSessionName(sourcePath);
   if (last) sessionName = last;
 });
 
@@ -178,7 +177,7 @@ async function handleBrowseSource(): Promise<void> {
     if (selected) {
       sourcePath = selected;
       if (!nameManuallyEdited) {
-        const lastSegment = selected.replace(/\/$/, '').split('/').at(-1) ?? '';
+        const lastSegment = getDefaultSessionName(selected);
         if (lastSegment) sessionName = lastSegment;
       }
     }
