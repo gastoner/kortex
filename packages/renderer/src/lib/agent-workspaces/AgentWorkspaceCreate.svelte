@@ -1,19 +1,11 @@
 <script lang="ts">
-import {
-  faCode,
-  faGears,
-  faHome,
-  faLock,
-  faO,
-  faRobot,
-  faTriangleExclamation,
-  faWrench,
-} from '@fortawesome/free-solid-svg-icons';
+import { faCode, faLock, faO, faRobot, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@podman-desktop/ui-svelte';
 import { Icon } from '@podman-desktop/ui-svelte/icons';
 import { toast } from 'svelte-sonner';
 
 import AgentWorkspaceCreateStepAgentModel from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepAgentModel.svelte';
+import type { FileAccessOption } from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
 import AgentWorkspaceCreateStepFileSystem from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
 import AgentWorkspaceCreateStepNetworking from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepNetworking.svelte';
 import AgentWorkspaceCreateStepToolsSecrets from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepToolsSecrets.svelte';
@@ -53,34 +45,35 @@ const agentOptions: CardSelectorOption[] = [
   },
 ];
 
-const fileAccessOptions: CardSelectorOption[] = [
+const fileAccessOptions: FileAccessOption[] = [
   {
-    title: 'Working Directory Only',
-    badge: 'Recommended',
     value: 'workspace',
-    icon: faGears,
-    description: 'Restrict access to the project working directory',
+    name: 'No host filesystem access',
+    description: 'The agent cannot read or write files on your host. Use for API-only or fully remote workflows.',
+    access: 'None',
+    notes: 'Strict isolation',
+    badge: 'Recommended',
   },
   {
-    title: 'Home Directory',
-    badge: '~/  access',
     value: 'home',
-    icon: faHome,
-    description: 'Allow access to the user home directory',
+    name: 'Home Directory',
+    description: 'Agent can access your entire home directory (~/) and all subdirectories.',
+    access: 'Home (~)',
+    notes: 'Local development',
   },
   {
-    title: 'Custom Paths',
-    badge: 'Configurable',
     value: 'custom',
-    icon: faGears,
-    description: 'Specify custom paths the agent can access',
+    name: 'Custom Paths',
+    description: 'Specify exact directories the agent can access.',
+    access: 'Listed paths',
+    notes: 'Set path below',
   },
   {
-    title: 'Full System Access',
-    badge: 'Caution',
     value: 'full',
-    icon: faTriangleExclamation,
-    description: 'Unrestricted filesystem access — use with care',
+    name: 'Full System Access',
+    description: 'Agent can access the entire filesystem. Use with caution.',
+    access: 'Full host',
+    notes: 'High privilege',
   },
 ];
 
