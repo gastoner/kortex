@@ -162,6 +162,34 @@ export interface DialogOptions {
   waitForDialogToDisappear?: boolean;
 }
 
+export const CODING_AGENT = {
+  OPENCODE: 'OpenCode',
+  CLAUDE: 'Claude',
+  CURSOR: 'Cursor',
+  GOOSE: 'Goose',
+} as const;
+export const CODING_AGENTS = Object.values(CODING_AGENT);
+export type CodingAgent = (typeof CODING_AGENT)[keyof typeof CODING_AGENT];
+
+export const WIZARD_STEP = {
+  WORKSPACE: 'Workspace',
+  AGENT_MODEL: 'Agent & Model',
+  TOOLS_SECRETS: 'Tools & Secrets',
+  FILE_SYSTEM: 'File System',
+  NETWORKING: 'Networking',
+} as const;
+export const WIZARD_STEPS = Object.values(WIZARD_STEP);
+export type WizardStep = (typeof WIZARD_STEP)[keyof typeof WIZARD_STEP];
+
+export const FILE_ACCESS_LEVEL = {
+  NO_HOST_ACCESS: 'No host filesystem access',
+  HOME_DIRECTORY: 'Home Directory',
+  CUSTOM_PATHS: 'Custom Paths',
+  FULL_SYSTEM: 'Full System Access',
+} as const;
+export const FILE_ACCESS_LEVELS = Object.values(FILE_ACCESS_LEVEL);
+export type FileAccessLevel = (typeof FILE_ACCESS_LEVEL)[keyof typeof FILE_ACCESS_LEVEL];
+
 export const SELECTORS = {
   MAIN_ANY: 'main',
   MAIN_INITIALIZING: 'main.flex.flex-row.w-screen.h-screen.justify-center',
