@@ -253,23 +253,19 @@ test('Expect secrets empty state shown when vault is empty', async () => {
   expect(screen.getByRole('button', { name: 'Open Vault' })).toBeInTheDocument();
 });
 
-test('Expect secrets listed with category headers when vault has entries', async () => {
+test('Expect secrets listed when vault has entries', async () => {
   vi.mocked(secretVaultStore).secretVaultInfos = writable<readonly SecretVaultInfo[]>([
     {
       id: 'github-token',
       name: 'GitHub Token',
-      category: 'api',
-      type: 'Personal access token',
-      status: 'active',
-      description: 'Sep 2026 · Active',
+      type: 'github',
+      description: 'Personal access token',
     },
     {
-      id: 'ssh-key',
-      name: 'SSH Key',
-      category: 'infra',
-      type: 'Platform token',
-      status: 'active',
-      description: 'Aug 2026 · Active',
+      id: 'anthropic-key',
+      name: 'Anthropic Key',
+      type: 'anthropic',
+      description: 'API key',
     },
   ]);
 
@@ -279,9 +275,7 @@ test('Expect secrets listed with category headers when vault has entries', async
   await expandCustomize();
 
   expect(screen.getByText('GitHub Token')).toBeInTheDocument();
-  expect(screen.getByText('SSH Key')).toBeInTheDocument();
-  expect(screen.getByText('API tokens')).toBeInTheDocument();
-  expect(screen.getByText('Infrastructure')).toBeInTheDocument();
+  expect(screen.getByText('Anthropic Key')).toBeInTheDocument();
   expect(screen.getByText('Secret Vault')).toBeInTheDocument();
   expect(screen.queryByText('No secrets in your vault yet.')).not.toBeInTheDocument();
 });
