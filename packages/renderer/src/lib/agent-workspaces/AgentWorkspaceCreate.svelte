@@ -11,6 +11,7 @@ import AgentWorkspaceCreateStepNetworking from '/@/lib/agent-workspaces/AgentWor
 import AgentWorkspaceCreateStepToolsSecrets from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepToolsSecrets.svelte';
 import AgentWorkspaceCreateStepWorkspace from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepWorkspace.svelte';
 import type { CardSelectorOption } from '/@/lib/ui/CardSelector.svelte';
+import type { ChecklistItem } from '/@/lib/ui/ChecklistPanel.svelte';
 import FormPage from '/@/lib/ui/FormPage.svelte';
 import type { ScrollableCardItem } from '/@/lib/ui/ScrollableCardSelector.svelte';
 import WizardStepper from '/@/lib/ui/WizardStepper.svelte';
@@ -85,8 +86,13 @@ const wizardSteps = [
   { id: 'networking', title: 'Networking' },
 ];
 
-let skillItems: ScrollableCardItem[] = $derived(
-  $skillInfos.map(s => ({ id: s.name, name: s.name, description: s.description })),
+let skillItems: ChecklistItem[] = $derived(
+  $skillInfos.map(s => ({
+    id: s.name,
+    name: s.name,
+    description: s.description,
+    group: s.managed ? 'Custom' : 'Pre-built',
+  })),
 );
 let mcpItems: ScrollableCardItem[] = $derived(
   $mcpRemoteServerInfos.map(m => ({ id: m.id, name: m.name, description: m.description })),

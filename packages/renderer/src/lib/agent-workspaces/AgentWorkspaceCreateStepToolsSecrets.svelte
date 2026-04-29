@@ -12,7 +12,7 @@ import { secretVaultInfos } from '/@/stores/secret-vault';
 import { NavigationPage } from '/@api/navigation-page';
 
 interface Props {
-  skillItems: ScrollableCardItem[];
+  skillItems: ChecklistItem[];
   selectedSkillIds: string[];
   mcpItems: ScrollableCardItem[];
   selectedMcpIds: string[];
@@ -49,6 +49,10 @@ let summaryParts: string[] = $derived(
   ].filter(Boolean),
 );
 
+function navigateToSkills(): void {
+  handleNavigation({ page: NavigationPage.SKILLS });
+}
+
 function navigateToSecretVault(): void {
   handleNavigation({ page: NavigationPage.SECRET_VAULT });
 }
@@ -71,20 +75,17 @@ function navigateToSecretVault(): void {
   <Expandable expanded={false}>
     {#snippet title()}<span class="text-sm font-medium text-[var(--pd-modal-text)]">Customize skills, MCP servers, and vault</span>{/snippet}
     <div class="space-y-6 pt-3">
-      {#if skillItems.length > 0}
-        <div>
-          <div class="flex items-center gap-3 mb-5">
-            <div class="w-9 h-9 rounded-[9px] flex items-center justify-center bg-[var(--pd-label-tertiary-bg)] text-[var(--pd-label-tertiary-text)]">
-              <Icon icon={faWrench} class="text-xl" />
-            </div>
-            <div>
-              <span class="text-lg font-semibold text-[var(--pd-modal-text)]">Skills</span>
-              <p class="text-sm text-[var(--pd-content-card-text)] opacity-70 mt-0.5">Select the capabilities your agent should have</p>
-            </div>
-          </div>
-          <ScrollableCardSelector items={skillItems} bind:selected={selectedSkillIds} placeholder="Search skills..." />
-        </div>
-      {/if}
+      <ChecklistPanel
+        title="Skills"
+        subtitle="Select the capabilities your agent should have"
+        icon={faWrench}
+        items={skillItems}
+        bind:selected={selectedSkillIds}
+        emptyMessage="No skills available yet.">
+        {#snippet headerAction()}
+          <Button type="secondary" onclick={navigateToSkills}>Manage Skills</Button>
+        {/snippet}
+      </ChecklistPanel>
 
       {#if mcpItems.length > 0}
         <div>
