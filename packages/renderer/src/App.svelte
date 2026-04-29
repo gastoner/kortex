@@ -222,9 +222,9 @@ tablePersistence.storage = new PodmanDesktopStoragePersist();
           <Route path="/create" breadcrumb="Create">
             <AgentWorkspaceCreate />
           </Route>
-        </Route>
-        <Route path="/agent-workspaces/:id/*" breadcrumb="Workspace Details" let:meta navigationHint="details">
-          <AgentWorkspaceDetails workspaceId={decodeURIComponent(meta.params.id)} />
+          <Route path="/:id/*" breadcrumb="Workspace Details" let:meta navigationHint="details">
+            <AgentWorkspaceDetails workspaceId={decodeURIComponent(meta.params.id)} />
+          </Route>
         </Route>
 
         <Route path="/flows/*" breadcrumb="Flows" navigationHint="root" firstmatch>

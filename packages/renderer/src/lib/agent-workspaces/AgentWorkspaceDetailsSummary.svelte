@@ -15,9 +15,6 @@ let { workspaceSummary, configuration }: Props = $props();
 
 <div class="h-min">
   <DetailsTable>
-    <tr>
-      <DetailsTitle>Workspace</DetailsTitle>
-    </tr>
     {#if workspaceSummary?.project}
       <tr>
         <DetailsCell>Project</DetailsCell>
