@@ -340,21 +340,17 @@ test('Expect skills listed when store has entries', async () => {
   expect(screen.queryByText('No skills available yet.')).not.toBeInTheDocument();
 });
 
-test('Expect skills grouped by Pre-built and Custom labels', async () => {
+test.each([
+  { managed: false, expectedGroup: 'Pre-built', unexpectedGroup: 'Custom' },
+  { managed: true, expectedGroup: 'Custom', unexpectedGroup: 'Pre-built' },
+])('Expect managed=$managed maps to the correct group', async ({ managed, expectedGroup, unexpectedGroup }) => {
   vi.mocked(skillsStore).skillInfos = writable<SkillInfo[]>([
     {
-      name: 'kubernetes',
-      description: 'Deploy & manage clusters',
-      path: '/skills/kubernetes',
+      name: 'sample-skill',
+      description: 'Sample description',
+      path: '/skills/sample-skill',
       enabled: true,
-      managed: false,
-    },
-    {
-      name: 'code-review',
-      description: 'Analyze code quality & security',
-      path: '/skills/code-review',
-      enabled: true,
-      managed: true,
+      managed,
     },
   ]);
 
@@ -363,8 +359,8 @@ test('Expect skills grouped by Pre-built and Custom labels', async () => {
   await navigateToToolsSecretsStep();
   await expandCustomize();
 
-  expect(screen.getByText('Pre-built')).toBeInTheDocument();
-  expect(screen.getByText('Custom')).toBeInTheDocument();
+  expect(screen.getByText(expectedGroup)).toBeInTheDocument();
+  expect(screen.queryByText(unexpectedGroup)).not.toBeInTheDocument();
 });
 
 test('Expect Manage Skills button navigates to skills page', async () => {
