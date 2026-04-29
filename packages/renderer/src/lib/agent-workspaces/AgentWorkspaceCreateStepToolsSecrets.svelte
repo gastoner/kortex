@@ -32,7 +32,6 @@ let secretItems: ChecklistItem[] = $derived(
     id: s.id,
     name: s.name,
     description: [s.type, s.description].filter(Boolean).join(' · '),
-    group: s.category === 'api' ? 'API tokens' : 'Infrastructure',
   })),
 );
 
