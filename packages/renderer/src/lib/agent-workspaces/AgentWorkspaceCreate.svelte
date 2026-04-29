@@ -222,7 +222,7 @@ async function startWorkspace(): Promise<void> {
             </span>
             <h1 class="text-2xl font-bold text-[var(--pd-modal-text)] mb-1">Create Coding Agent Workspace</h1>
             <p class="text-sm text-[var(--pd-content-card-text)] opacity-70 max-w-2xl leading-relaxed">
-              Add your code location first, then tune agent, tools, and sandbox access…
+              Add your code location first, then agent, tools, and sandbox filesystem & networking.
             </p>
           </div>
 
