@@ -205,7 +205,7 @@ test('Expect custom paths section shown when Custom Paths selected on filesystem
   await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
   await fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-  await fireEvent.click(screen.getByRole('button', { name: 'Custom Paths' }));
+  await fireEvent.click(screen.getByRole('radio', { name: 'Use Custom Paths' }));
 
   expect(screen.getByPlaceholderText('/path/to/allowed/directory')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Add Another Path' })).toBeInTheDocument();
