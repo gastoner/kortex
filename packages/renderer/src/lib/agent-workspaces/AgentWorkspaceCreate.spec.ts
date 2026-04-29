@@ -292,4 +292,91 @@ test('Expect Open Vault button navigates to secret vault', async () => {
   expect(handleNavigation).toHaveBeenCalledWith({ page: 'secret-vault' });
 });
 
+test('Expect skills section visible after expanding customize', async () => {
+  render(AgentWorkspaceCreate);
+
+  await navigateToToolsSecretsStep();
+  await expandCustomize();
+
+  expect(screen.getByText('Skills')).toBeInTheDocument();
+  expect(screen.getByText('Select the capabilities your agent should have')).toBeInTheDocument();
+});
+
+test('Expect skills empty state shown when no skills available', async () => {
+  render(AgentWorkspaceCreate);
+
+  await navigateToToolsSecretsStep();
+  await expandCustomize();
+
+  expect(screen.getByText('No skills available yet.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Manage Skills' })).toBeInTheDocument();
+});
+
+test('Expect skills listed when store has entries', async () => {
+  vi.mocked(skillsStore).skillInfos = writable<SkillInfo[]>([
+    {
+      name: 'kubernetes',
+      description: 'Deploy & manage clusters',
+      path: '/skills/kubernetes',
+      enabled: true,
+      managed: false,
+    },
+    {
+      name: 'code-review',
+      description: 'Analyze code quality & security',
+      path: '/skills/code-review',
+      enabled: true,
+      managed: true,
+    },
+  ]);
+
+  render(AgentWorkspaceCreate);
+
+  await navigateToToolsSecretsStep();
+  await expandCustomize();
+
+  expect(screen.getByText('kubernetes')).toBeInTheDocument();
+  expect(screen.getByText('code-review')).toBeInTheDocument();
+  expect(screen.queryByText('No skills available yet.')).not.toBeInTheDocument();
+});
+
+test('Expect skills grouped by Pre-built and Custom labels', async () => {
+  vi.mocked(skillsStore).skillInfos = writable<SkillInfo[]>([
+    {
+      name: 'kubernetes',
+      description: 'Deploy & manage clusters',
+      path: '/skills/kubernetes',
+      enabled: true,
+      managed: false,
+    },
+    {
+      name: 'code-review',
+      description: 'Analyze code quality & security',
+      path: '/skills/code-review',
+      enabled: true,
+      managed: true,
+    },
+  ]);
+
+  render(AgentWorkspaceCreate);
+
+  await navigateToToolsSecretsStep();
+  await expandCustomize();
+
+  expect(screen.getByText('Pre-built')).toBeInTheDocument();
+  expect(screen.getByText('Custom')).toBeInTheDocument();
+});
+
+test('Expect Manage Skills button navigates to skills page', async () => {
+  const { handleNavigation } = await import('/@/navigation');
+
+  render(AgentWorkspaceCreate);
+
+  await navigateToToolsSecretsStep();
+  await expandCustomize();
+  await fireEvent.click(screen.getByRole('button', { name: 'Manage Skills' }));
+
+  expect(handleNavigation).toHaveBeenCalledWith({ page: 'skills' });
+});
+
 const wizardStepCount = 5;

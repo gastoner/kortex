@@ -188,6 +188,9 @@ export const handleNavigation = (request: InferredNavigationRequest<NavigationPa
     case NavigationPage.RAG_ENVIRONMENT_DETAILS:
       router.goto(`/rag-environments/${encodeURIComponent(request.parameters.name)}/summary`);
       break;
+    case NavigationPage.SKILLS:
+      router.goto('/skills');
+      break;
     case NavigationPage.SECRET_VAULT:
       router.goto('/secret-vault');
       break;
