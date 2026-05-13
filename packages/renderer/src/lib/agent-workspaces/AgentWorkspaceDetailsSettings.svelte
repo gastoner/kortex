@@ -186,6 +186,21 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
       buttons: ['OK'],
     });
   }
+  if (hasNameChanges) {
+    await window.updateAgentWorkspaceSummary(workspaceId, { name: workspaceName.trim() });
+  }
+  if (hasSkillChanges) {
+    const selectedPaths = pendingSkillIds
+      .map(name => $skillInfos.find(s => s.name === name)?.path)
+      .filter((path): path is string => path !== undefined);
+    const newSkills = selectedPaths.length > 0 ? selectedPaths : undefined;
+    configuration = { ...configuration, skills: newSkills };
+    await window.updateAgentWorkspaceConfiguration(workspaceId, { skills: newSkills });
+  }
+}
+
+function navigateToSkills(): void {
+  handleNavigation({ page: NavigationPage.SKILLS });
 }
 
 function navigateToSkills(): void {
