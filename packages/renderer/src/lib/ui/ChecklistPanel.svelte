@@ -21,6 +21,7 @@ interface Props {
   onchange?: (selected: string[]) => void;
   emptyMessage?: string;
   headerAction?: Snippet;
+  onchange?: (selected: string[]) => void;
 }
 
 let {
@@ -32,6 +33,7 @@ let {
   onchange,
   emptyMessage = 'No items available.',
   headerAction,
+  onchange,
 }: Props = $props();
 
 interface GroupedItems {
