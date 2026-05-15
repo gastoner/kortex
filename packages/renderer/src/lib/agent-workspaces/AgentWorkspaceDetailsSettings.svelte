@@ -3,6 +3,9 @@ import { faWrench } from '@fortawesome/free-solid-svg-icons';
 import { Button, Input, SettingsNavItem } from '@podman-desktop/ui-svelte';
 import { router } from 'tinro';
 
+import AgentWorkspaceCreateStepFileSystem, {
+  type CustomMount,
+} from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
 import type { ChecklistItem } from '/@/lib/ui/ChecklistPanel.svelte';
 import ChecklistPanel from '/@/lib/ui/ChecklistPanel.svelte';
 import { handleNavigation } from '/@/navigation';
@@ -10,7 +13,6 @@ import type { AgentWorkspaceSummaryUI } from '/@/stores/agent-workspaces.svelte'
 import { skillInfos } from '/@/stores/skills';
 import type { AgentWorkspaceConfiguration, AgentWorkspaceMount } from '/@api/agent-workspace-info';
 import { NavigationPage } from '/@api/navigation-page';
-  import AgentWorkspaceCreateStepFileSystem, { type CustomMount } from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
 
@@ -43,8 +45,6 @@ const activeLabel = $derived(sections.find(s => s.id === activeSection)?.label ?
 const originalName = $derived(workspaceSummary?.name ?? '');
 let workspaceName = $state(originalName);
 
-const placeholderSections: Set<SettingsSection> = new Set(['mcp', 'knowledge', 'file-access', 'network', 'advanced']);
-
 let skillItems: ChecklistItem[] = $derived(
   $skillInfos.map(s => ({
     id: s.name,
@@ -70,7 +70,6 @@ const hasNameChanges = $derived(workspaceName.trim() !== originalName && workspa
 const hasSkillChanges = $derived(
   pendingSkillIds.length !== originalSkillIds.length || pendingSkillIds.some(id => !originalSkillIds.includes(id)),
 );
-const hasChanges = $derived(hasNameChanges || hasSkillChanges);
 
 // --- File Access section state ---
 
@@ -121,6 +120,8 @@ const hasMountChanges: boolean = $derived(
         ))),
 );
 
+const hasChanges = $derived(hasNameChanges || hasMountChanges || hasSkillChanges);
+
 // --- Save / Discard ---
 async function saveChanges(): Promise<void> {
   try {
@@ -134,6 +135,14 @@ async function saveChanges(): Promise<void> {
       pendingFileAccess = deriveFileAccessSelection(configuration.mounts);
       pendingCustomMounts = deriveMountsFromMounts(configuration.mounts).map(m => ({ ...m }));
     }
+    if (hasSkillChanges) {
+      const selectedPaths = pendingSkillIds
+        .map(name => $skillInfos.find(s => s.name === name)?.path)
+        .filter((path): path is string => path !== undefined);
+      const newSkills = selectedPaths.length > 0 ? selectedPaths : undefined;
+      await window.updateAgentWorkspaceConfiguration(workspaceId, { skills: newSkills });
+      configuration = { ...configuration, skills: newSkills };
+    }
   } catch (err: unknown) {
     await window.showMessageBox({
       title: 'Agent Workspace',
@@ -141,6 +150,7 @@ async function saveChanges(): Promise<void> {
       message: `Failed to save workspace settings: ${err instanceof Error ? err.message : String(err)}`,
       buttons: ['OK'],
     });
+    discardChanges();
   }
 }
 
@@ -175,17 +185,6 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
       message: `Failed to browse for directory: ${err instanceof Error ? err.message : String(err)}`,
       buttons: ['OK'],
     });
-  }
-  if (hasNameChanges) {
-    await window.updateAgentWorkspaceSummary(workspaceId, { name: workspaceName.trim() });
-  }
-  if (hasSkillChanges) {
-    const selectedPaths = pendingSkillIds
-      .map(name => $skillInfos.find(s => s.name === name)?.path)
-      .filter((path): path is string => path !== undefined);
-    const newSkills = selectedPaths.length > 0 ? selectedPaths : undefined;
-    configuration = { ...configuration, skills: newSkills };
-    await window.updateAgentWorkspaceConfiguration(workspaceId, { skills: newSkills });
   }
 }
 
@@ -284,7 +283,7 @@ function navigateToSkills(): void {
               <Button type="secondary" onclick={navigateToSkills}>Manage Skills</Button>
             {/snippet}
           </ChecklistPanel>
-        {:else if placeholderSections.has(activeSection)}
+        {:else}
           <p class="text-sm text-[var(--pd-content-text)] mb-7">
             Configure {activeLabel.toLowerCase()} settings for this workspace.
           </p>
