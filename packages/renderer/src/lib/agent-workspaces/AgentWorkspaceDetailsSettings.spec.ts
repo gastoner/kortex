@@ -23,14 +23,17 @@ import { writable } from 'svelte/store';
 import { router } from 'tinro';
 import { beforeEach, expect, test, vi } from 'vitest';
 
+import * as ragStore from '/@/stores/rag-environments';
 import * as skillsStore from '/@/stores/skills';
 import type { AgentWorkspaceConfiguration, AgentWorkspaceSummary } from '/@api/agent-workspace-info';
+import type { RagEnvironment } from '/@api/rag/rag-environment';
 import type { SkillInfo } from '/@api/skill/skill-info';
 
 import AgentWorkspaceDetailsSettings from './AgentWorkspaceDetailsSettings.svelte';
 
 vi.mock(import('tinro'));
 vi.mock(import('/@/stores/skills'));
+vi.mock(import('/@/stores/rag-environments'));
 vi.mock(import('/@/navigation'));
 
 const routerStore = writable({
@@ -69,6 +72,7 @@ beforeEach(() => {
   vi.mocked(window.updateAgentWorkspaceSummary).mockResolvedValue(undefined);
   vi.mocked(window.updateAgentWorkspaceConfiguration).mockResolvedValue(undefined);
   vi.mocked(skillsStore).skillInfos = writable<readonly SkillInfo[]>([]);
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([]);
 });
 
 test('Expect General section is active by default with workspace info', () => {
@@ -477,4 +481,243 @@ test('Expect browse button calls openDialog and fills host path', async () => {
 
   expect(window.openDialog).toHaveBeenCalledWith({ title: 'Select a directory', selectors: ['openDirectory'] });
   expect(screen.getByRole('textbox', { name: 'Host path 1' })).toHaveValue('/selected/path');
+});
+
+test('Expect Knowledge section shows checklist with available knowledge bases', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [
+        { path: '/docs/api.md', status: 'indexed' },
+        { path: '/docs/guide.md', status: 'indexed' },
+      ],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+  ]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  expect(screen.getByText('Project Docs')).toBeInTheDocument();
+  expect(screen.getByText('2 sources · ChromaDB')).toBeInTheDocument();
+});
+
+test('Expect Knowledge section shows empty message when no knowledge bases available', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  expect(screen.getByText('No knowledge bases available yet.')).toBeInTheDocument();
+});
+
+test('Expect Knowledge section pre-selects knowledge matching workspace mcp config', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [{ path: '/docs/api.md', status: 'indexed' }],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+    {
+      name: 'Wiki',
+      ragConnection: { name: 'Weaviate', providerId: 'weav-1' },
+      chunkerId: 'chunker-2',
+      files: [],
+      mcpServer: {
+        id: 'rag-2',
+        name: 'Wiki MCP',
+        description: '',
+        url: 'http://localhost:3200/sse',
+        infos: { internalProviderId: 'p2', serverId: 's2', remoteId: 2 },
+        tools: {},
+      },
+    },
+  ]);
+
+  const configWithKnowledge: AgentWorkspaceConfiguration = {
+    ...configuration,
+    mcp: { servers: [{ name: 'Project Docs MCP', url: 'http://localhost:3100/sse' }] },
+  };
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: configWithKnowledge });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  expect(screen.getByText('1 of 2 selected')).toBeInTheDocument();
+});
+
+test('Expect toggling knowledge base shows unsaved changes', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+  ]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  const itemButton = screen.getByRole('button', { name: 'Project Docs' });
+  await fireEvent.click(itemButton);
+
+  expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
+});
+
+test('Expect saving knowledge changes calls updateAgentWorkspaceConfiguration', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+  ]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  const itemButton = screen.getByRole('button', { name: 'Project Docs' });
+  await fireEvent.click(itemButton);
+  await fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+  expect(window.updateAgentWorkspaceConfiguration).toHaveBeenCalledWith('ws-1', {
+    mcp: { servers: [{ name: 'Project Docs MCP', url: 'http://localhost:3100/sse' }] },
+  });
+});
+
+test('Expect saving knowledge preserves non-knowledge MCP servers', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+  ]);
+
+  const configWithExistingMcp: AgentWorkspaceConfiguration = {
+    ...configuration,
+    mcp: {
+      servers: [{ name: 'GitHub MCP', url: 'https://mcp.github.com/sse' }],
+      commands: [{ name: 'Local Tool', command: 'npx', args: ['tool'] }],
+    },
+  };
+
+  render(AgentWorkspaceDetailsSettings, {
+    workspaceId: 'ws-1',
+    workspaceSummary,
+    configuration: configWithExistingMcp,
+  });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  const itemButton = screen.getByRole('button', { name: 'Project Docs' });
+  await fireEvent.click(itemButton);
+  await fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+  expect(window.updateAgentWorkspaceConfiguration).toHaveBeenCalledWith('ws-1', {
+    mcp: {
+      servers: [
+        { name: 'GitHub MCP', url: 'https://mcp.github.com/sse' },
+        { name: 'Project Docs MCP', url: 'http://localhost:3100/sse' },
+      ],
+      commands: [{ name: 'Local Tool', command: 'npx', args: ['tool'] }],
+    },
+  });
+});
+
+test('Expect discarding knowledge changes resets selection', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([
+    {
+      name: 'Project Docs',
+      ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
+      chunkerId: 'chunker-1',
+      files: [],
+      mcpServer: {
+        id: 'rag-1',
+        name: 'Project Docs MCP',
+        description: '',
+        url: 'http://localhost:3100/sse',
+        infos: { internalProviderId: 'p1', serverId: 's1', remoteId: 1 },
+        tools: {},
+      },
+    },
+  ]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  const itemButton = screen.getByRole('button', { name: 'Project Docs' });
+  await fireEvent.click(itemButton);
+  await fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+  expect(screen.getByText('No changes to save')).toBeInTheDocument();
+  expect(window.updateAgentWorkspaceConfiguration).not.toHaveBeenCalled();
+});
+
+test('Expect Knowledge section has Manage Knowledges button', async () => {
+  vi.mocked(ragStore).ragEnvironments = writable<RagEnvironment[]>([]);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const knowledgeNav = screen.getByRole('link', { name: 'Knowledge' });
+  await fireEvent.click(knowledgeNav);
+
+  expect(screen.getByRole('button', { name: 'Manage Knowledges' })).toBeInTheDocument();
 });

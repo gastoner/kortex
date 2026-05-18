@@ -1,5 +1,5 @@
 <script lang="ts">
-import { faWrench } from '@fortawesome/free-solid-svg-icons';
+import { faBook, faWrench } from '@fortawesome/free-solid-svg-icons';
 import { Button, Input, SettingsNavItem } from '@podman-desktop/ui-svelte';
 import { router } from 'tinro';
 
@@ -10,8 +10,13 @@ import type { ChecklistItem } from '/@/lib/ui/ChecklistPanel.svelte';
 import ChecklistPanel from '/@/lib/ui/ChecklistPanel.svelte';
 import { handleNavigation } from '/@/navigation';
 import type { AgentWorkspaceSummaryUI } from '/@/stores/agent-workspaces.svelte';
+import { ragEnvironments } from '/@/stores/rag-environments';
 import { skillInfos } from '/@/stores/skills';
-import type { AgentWorkspaceConfiguration, AgentWorkspaceMount } from '/@api/agent-workspace-info';
+import type {
+  AgentWorkspaceConfiguration,
+  AgentWorkspaceMcpConfig,
+  AgentWorkspaceMount,
+} from '/@api/agent-workspace-info';
 import { NavigationPage } from '/@api/navigation-page';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
@@ -120,7 +125,40 @@ const hasMountChanges: boolean = $derived(
         ))),
 );
 
-const hasChanges = $derived(hasNameChanges || hasMountChanges || hasSkillChanges);
+// --- Knowledge section state ---
+let knowledgeItems: ChecklistItem[] = $derived(
+  $ragEnvironments
+    .filter(r => r.mcpServer)
+    .map(r => {
+      const sourceCount = r.files.length;
+      const sourcesLabel = sourceCount > 0 ? `${sourceCount} source${sourceCount !== 1 ? 's' : ''}` : '';
+      return {
+        id: r.name,
+        name: r.name,
+        description: [sourcesLabel, r.ragConnection.name].filter(Boolean).join(' · '),
+      };
+    }),
+);
+
+const originalKnowledgeIds: string[] = $derived(
+  $ragEnvironments
+    .filter(r => r.mcpServer && (configuration.mcp?.servers ?? []).some(s => s.url === r.mcpServer?.url))
+    .map(r => r.name),
+);
+
+let pendingKnowledgeIds: string[] = $state([...originalKnowledgeIds]);
+
+const hasKnowledgeChanges: boolean = $derived(
+  pendingKnowledgeIds.length !== originalKnowledgeIds.length ||
+    pendingKnowledgeIds.some(id => !originalKnowledgeIds.includes(id)),
+);
+
+function onKnowledgeSelectionChange(selected: string[]): void {
+  pendingKnowledgeIds = selected;
+}
+
+// --- Combined dirty state ---
+const hasChanges = $derived(hasNameChanges || hasMountChanges || hasSkillChanges || hasKnowledgeChanges);
 
 // --- Save / Discard ---
 async function saveChanges(): Promise<void> {
@@ -143,6 +181,11 @@ async function saveChanges(): Promise<void> {
       await window.updateAgentWorkspaceConfiguration(workspaceId, { skills: newSkills });
       configuration = { ...configuration, skills: newSkills };
     }
+    if (hasKnowledgeChanges) {
+      const mcpConfig = buildMcpConfigWithKnowledge(pendingKnowledgeIds);
+      await window.updateAgentWorkspaceConfiguration(workspaceId, { mcp: mcpConfig });
+      configuration = { ...configuration, mcp: mcpConfig };
+    }
   } catch (err: unknown) {
     await window.showMessageBox({
       title: 'Agent Workspace',
@@ -154,11 +197,27 @@ async function saveChanges(): Promise<void> {
   }
 }
 
+function buildMcpConfigWithKnowledge(selectedIds: string[]): AgentWorkspaceMcpConfig {
+  const knowledgeUrls = new Set($ragEnvironments.filter(r => r.mcpServer).map(r => r.mcpServer!.url));
+  const nonKnowledgeServers = (configuration.mcp?.servers ?? []).filter(s => !knowledgeUrls.has(s.url));
+  const selectedServers = selectedIds
+    .map(name => $ragEnvironments.find(r => r.name === name)?.mcpServer)
+    .filter((s): s is NonNullable<typeof s> => s !== undefined)
+    .map(s => ({ name: s.name, url: s.url }));
+
+  const servers = [...nonKnowledgeServers, ...selectedServers];
+  return {
+    ...(configuration.mcp?.commands ? { commands: configuration.mcp.commands } : {}),
+    ...(servers.length > 0 ? { servers } : {}),
+  };
+}
+
 function discardChanges(): void {
   workspaceName = originalName;
   pendingFileAccess = originalFileAccess;
   pendingCustomMounts = originalCustomMounts.map(m => ({ ...m }));
   pendingSkillIds = [...originalSkillIds];
+  pendingKnowledgeIds = [...originalKnowledgeIds];
 }
 
 function addCustomMount(): void {
@@ -188,8 +247,8 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
   }
 }
 
-function navigateToSkills(): void {
-  handleNavigation({ page: NavigationPage.SKILLS });
+function navigateToKnowledges(): void {
+  handleNavigation({ page: NavigationPage.RAG_ENVIRONMENTS });
 }
 
 function navigateToSkills(): void {
@@ -287,6 +346,24 @@ function navigateToSkills(): void {
               <Button type="secondary" onclick={navigateToSkills}>Manage Skills</Button>
             {/snippet}
           </ChecklistPanel>
+        {:else if activeSection === 'knowledge'}
+          <p class="text-sm text-[var(--pd-content-text)] mb-7">
+            Select which knowledge bases are available in this workspace.
+          </p>
+
+          <ChecklistPanel
+            title="Knowledge Bases"
+            subtitle="Optional retrieval context for the agent"
+            icon={faBook}
+            items={knowledgeItems}
+            selected={pendingKnowledgeIds}
+            onchange={onKnowledgeSelectionChange}
+            emptyMessage="No knowledge bases available yet.">
+            {#snippet headerAction()}
+              <Button type="secondary" onclick={navigateToKnowledges}>Manage Knowledges</Button>
+            {/snippet}
+          </ChecklistPanel>
+
         {:else}
           <p class="text-sm text-[var(--pd-content-text)] mb-7">
             Configure {activeLabel.toLowerCase()} settings for this workspace.
