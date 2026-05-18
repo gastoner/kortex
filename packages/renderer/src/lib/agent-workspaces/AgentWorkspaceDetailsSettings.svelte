@@ -18,6 +18,7 @@ import type {
   AgentWorkspaceMount,
 } from '/@api/agent-workspace-info';
 import { NavigationPage } from '/@api/navigation-page';
+  import { ragEnvironments } from '/@/stores/rag-environments';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
 
@@ -245,6 +246,10 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
       buttons: ['OK'],
     });
   }
+}
+
+function navigateToKnowledges(): void {
+  handleNavigation({ page: NavigationPage.RAG_ENVIRONMENTS });
 }
 
 function navigateToSkills(): void {
