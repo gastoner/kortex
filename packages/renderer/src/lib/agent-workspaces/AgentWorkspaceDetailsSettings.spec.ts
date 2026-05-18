@@ -62,6 +62,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(router).subscribe.mockImplementation(routerStore.subscribe);
   vi.mocked(window.updateAgentWorkspaceSummary).mockResolvedValue(undefined);
+  vi.mocked(window.updateAgentWorkspaceConfiguration).mockResolvedValue(undefined);
 });
 
 test('Expect General section is active by default with workspace info', () => {
@@ -195,4 +196,130 @@ test('Expect error dialog shown when save fails', async () => {
       message: expect.stringContaining('network timeout'),
     }),
   );
+});
+
+// --- File Access section tests ---
+
+test('Expect File Access section shows Custom Paths selected for existing custom mounts', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  const customRadio = screen.getByRole('radio', { name: 'Use Custom Paths' });
+  expect(customRadio).toBeChecked();
+  const hostInput = screen.getByRole('textbox', { name: 'Host path 1' });
+  expect(hostInput).toHaveValue('$SOURCES/../shared-lib');
+  const targetInput = screen.getByRole('textbox', { name: 'Target path 1' });
+  expect(targetInput).toHaveValue('/workspace/shared-lib');
+});
+
+test('Expect File Access section defaults to No host filesystem access when no mounts', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: {} });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  const workspaceRadio = screen.getByRole('radio', { name: 'Use No host filesystem access' });
+  expect(workspaceRadio).toBeChecked();
+  expect(screen.queryByRole('textbox', { name: 'Host path 1' })).not.toBeInTheDocument();
+});
+
+test('Expect selecting Custom Paths shows mount editor with empty mount', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: {} });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Custom Paths' }));
+
+  expect(screen.getByRole('textbox', { name: 'Host path 1' })).toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Target path 1' })).toBeInTheDocument();
+});
+
+test('Expect switching file access mode shows unsaved changes', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: {} });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Home Directory' }));
+
+  expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
+});
+
+test('Expect toggling read-only updates the button text', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  const toggleBtn = screen.getByRole('button', { name: 'Toggle read-only for mount 1' });
+  expect(toggleBtn).toHaveTextContent('read-write');
+
+  await fireEvent.click(toggleBtn);
+
+  expect(screen.getByRole('button', { name: 'Toggle read-only for mount 1' })).toHaveTextContent('read-only');
+});
+
+test('Expect saving Home Directory mode calls updateAgentWorkspaceConfiguration', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: {} });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Home Directory' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+  expect(window.updateAgentWorkspaceConfiguration).toHaveBeenCalledWith('ws-1', {
+    mounts: [{ host: '$HOME', target: '$HOME', ro: false }],
+  });
+});
+
+test('Expect saving custom mounts calls updateAgentWorkspaceConfiguration', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration: {} });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Custom Paths' }));
+  const hostInput = screen.getByRole('textbox', { name: 'Host path 1' });
+  await fireEvent.input(hostInput, { target: { value: '/home/user/data' } });
+  const targetInput = screen.getByRole('textbox', { name: 'Target path 1' });
+  await fireEvent.input(targetInput, { target: { value: '/workspace/data' } });
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+  expect(window.updateAgentWorkspaceConfiguration).toHaveBeenCalledWith('ws-1', {
+    mounts: [{ host: '/home/user/data', target: '/workspace/data', ro: false }],
+  });
+});
+
+test('Expect discarding file access changes resets to original mode', async () => {
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Home Directory' }));
+  await fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+  const customRadio = screen.getByRole('radio', { name: 'Use Custom Paths' });
+  expect(customRadio).toBeChecked();
+  expect(screen.getByRole('textbox', { name: 'Host path 1' })).toHaveValue('$SOURCES/../shared-lib');
+  expect(screen.queryByText('You have unsaved changes')).not.toBeInTheDocument();
+});
+
+test('Expect browse button calls openDialog and fills host path', async () => {
+  vi.mocked(window.openDialog).mockResolvedValue(['/selected/path']);
+
+  render(AgentWorkspaceDetailsSettings, { workspaceId: 'ws-1', workspaceSummary, configuration });
+
+  const fileAccessNav = screen.getByRole('link', { name: 'File Access' });
+  await fireEvent.click(fileAccessNav);
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Browse for directory' }));
+
+  expect(window.openDialog).toHaveBeenCalledWith({ title: 'Select a directory', selectors: ['openDirectory'] });
+  expect(screen.getByRole('textbox', { name: 'Host path 1' })).toHaveValue('/selected/path');
 });

@@ -6,8 +6,9 @@ import { onMount } from 'svelte';
 import { toast } from 'svelte-sonner';
 
 import AgentWorkspaceCreateStepAgentModel from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepAgentModel.svelte';
-import type { CustomMount, FileAccessOption } from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
-import AgentWorkspaceCreateStepFileSystem from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
+import AgentWorkspaceCreateStepFileSystem, {
+  type CustomMount,
+} from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
 import type { NetworkAccessOption } from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepNetworking.svelte';
 import AgentWorkspaceCreateStepNetworking from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepNetworking.svelte';
 import AgentWorkspaceCreateStepToolsSecrets from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepToolsSecrets.svelte';
@@ -34,38 +35,6 @@ import type {
 } from '/@api/agent-workspace-info';
 import { NavigationPage } from '/@api/navigation-page';
 import type { DefaultWorkspaceSettings } from '/@api/onboarding-settings-info';
-
-const fileAccessOptions: FileAccessOption[] = [
-  {
-    value: 'workspace',
-    name: 'No host filesystem access',
-    description: 'The agent cannot read or write files on your host. Use for API-only or fully remote workflows.',
-    access: 'None',
-    notes: 'Strict isolation',
-    badge: 'Recommended',
-  },
-  {
-    value: 'home',
-    name: 'Home Directory',
-    description: 'Agent can access your entire home directory (~/) and all subdirectories.',
-    access: 'Home (~)',
-    notes: 'Local development',
-  },
-  {
-    value: 'custom',
-    name: 'Custom Paths',
-    description: 'Specify exact directories the agent can access.',
-    access: 'Listed paths',
-    notes: 'Set path below',
-  },
-  {
-    value: 'full',
-    name: 'Full System Access',
-    description: 'Agent can access the entire filesystem. Use with caution.',
-    access: 'Full host',
-    notes: 'High privilege',
-  },
-];
 
 const baseNetworkOptions: NetworkAccessOption[] = [
   {
@@ -529,7 +498,6 @@ async function startWorkspace(): Promise<void> {
                 bind:selectedKnowledgeIds={wizard.draft.selectedKnowledgeIds} />
             {:else if currentStepId === 'filesystem'}
               <AgentWorkspaceCreateStepFileSystem
-                {fileAccessOptions}
                 bind:selectedFileAccess={wizard.draft.selectedFileAccess}
                 customMounts={wizard.draft.customMounts}
                 onBrowseCustomPath={handleBrowseCustomPath}

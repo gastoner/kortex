@@ -3,7 +3,9 @@ import { Button, Input, SettingsNavItem } from '@podman-desktop/ui-svelte';
 import { router } from 'tinro';
 
 import type { AgentWorkspaceSummaryUI } from '/@/stores/agent-workspaces.svelte';
-import type { AgentWorkspaceConfiguration } from '/@api/agent-workspace-info';
+import type { AgentWorkspaceConfiguration, AgentWorkspaceMount } from '/@api/agent-workspace-info';
+
+import AgentWorkspaceCreateStepFileSystem, { type CustomMount } from './AgentWorkspaceCreateStepFileSystem.svelte';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
 
@@ -35,13 +37,73 @@ const activeLabel = $derived(sections.find(s => s.id === activeSection)?.label ?
 
 const originalName = $derived(workspaceSummary?.name ?? '');
 let workspaceName = $state(originalName);
-const hasChanges = $derived(workspaceName.trim() !== originalName && workspaceName.trim().length > 0);
+const hasNameChanges = $derived(workspaceName.trim() !== originalName && workspaceName.trim().length > 0);
 
+// --- File Access section state ---
+
+function deriveFileAccessSelection(mounts: AgentWorkspaceMount[] | undefined): string {
+  if (!mounts || mounts.length === 0) return 'workspace';
+  if (mounts.length === 1 && mounts[0].host === '$HOME' && mounts[0].target === '$HOME') return 'home';
+  if (mounts.length === 1 && mounts[0].host === '/' && mounts[0].target === '/') return 'full';
+  return 'custom';
+}
+
+function deriveMountsFromMounts(mounts: AgentWorkspaceMount[] | undefined): CustomMount[] {
+  if (!mounts || mounts.length === 0) return [{ host: '', target: '', ro: false }];
+  return mounts.map(m => ({ host: m.host, target: m.target, ro: m.ro }));
+}
+
+const originalFileAccess = $derived(deriveFileAccessSelection(configuration.mounts));
+const originalCustomMounts = $derived(deriveMountsFromMounts(configuration.mounts));
+
+let pendingFileAccess: string = $state(originalFileAccess);
+let pendingCustomMounts: CustomMount[] = $state(originalCustomMounts.map(m => ({ ...m })));
+
+function buildMountsFromSelection(fileAccess: string, mounts: CustomMount[]): AgentWorkspaceMount[] | undefined {
+  switch (fileAccess) {
+    case 'home':
+      return [{ host: '$HOME', target: '$HOME', ro: false }];
+    case 'full':
+      return [{ host: '/', target: '/', ro: false }];
+    case 'custom': {
+      const filtered = mounts
+        .filter(m => m.host.trim() !== '')
+        .map(m => ({ host: m.host.trim(), target: m.target.trim() ?? m.host.trim(), ro: m.ro }));
+      return filtered.length > 0 ? filtered : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+const hasMountChanges: boolean = $derived(
+  pendingFileAccess !== originalFileAccess ||
+    (pendingFileAccess === 'custom' &&
+      (pendingCustomMounts.length !== originalCustomMounts.length ||
+        pendingCustomMounts.some(
+          (m, i) =>
+            m.host !== originalCustomMounts[i]?.host ||
+            m.target !== originalCustomMounts[i]?.target ||
+            m.ro !== originalCustomMounts[i]?.ro,
+        ))),
+);
+
+// --- Combined dirty state ---
+const hasChanges = $derived(hasNameChanges || hasMountChanges);
+
+// --- Save / Discard ---
 async function saveChanges(): Promise<void> {
-  const trimmed = workspaceName.trim();
-  if (!trimmed || trimmed === originalName) return;
   try {
-    await window.updateAgentWorkspaceSummary(workspaceId, { name: trimmed });
+    if (hasNameChanges) {
+      await window.updateAgentWorkspaceSummary(workspaceId, { name: workspaceName.trim() });
+    }
+    if (hasMountChanges) {
+      const newMounts = buildMountsFromSelection(pendingFileAccess, pendingCustomMounts);
+      await window.updateAgentWorkspaceConfiguration(workspaceId, { mounts: newMounts });
+      configuration = { ...configuration, mounts: newMounts };
+      pendingFileAccess = deriveFileAccessSelection(configuration.mounts);
+      pendingCustomMounts = deriveMountsFromMounts(configuration.mounts).map(m => ({ ...m }));
+    }
   } catch (err: unknown) {
     await window.showMessageBox({
       title: 'Agent Workspace',
@@ -54,6 +116,35 @@ async function saveChanges(): Promise<void> {
 
 function discardChanges(): void {
   workspaceName = originalName;
+  pendingFileAccess = originalFileAccess;
+  pendingCustomMounts = originalCustomMounts.map(m => ({ ...m }));
+}
+
+function addCustomMount(): void {
+  pendingCustomMounts = [...pendingCustomMounts, { host: '', target: '', ro: false }];
+}
+
+function removeCustomMount(index: number): void {
+  pendingCustomMounts = pendingCustomMounts.filter((_, i) => i !== index);
+}
+
+function updateCustomMount(index: number, field: keyof CustomMount, value: string | boolean): void {
+  pendingCustomMounts = pendingCustomMounts.map((m, i) => (i === index ? { ...m, [field]: value } : m));
+}
+
+async function handleBrowseCustomPath(index: number): Promise<void> {
+  try {
+    const result = await window.openDialog({ title: 'Select a directory', selectors: ['openDirectory'] });
+    const selected = result?.[0];
+    if (selected) updateCustomMount(index, 'host', selected);
+  } catch (err: unknown) {
+    await window.showMessageBox({
+      title: 'Agent Workspace',
+      type: 'error',
+      message: `Failed to browse for directory: ${err instanceof Error ? err.message : String(err)}`,
+      buttons: ['OK'],
+    });
+  }
 }
 </script>
 
@@ -122,6 +213,15 @@ function discardChanges(): void {
               </div>
             </div>
           </div>
+
+        {:else if activeSection === 'file-access'}
+          <AgentWorkspaceCreateStepFileSystem
+            bind:selectedFileAccess={pendingFileAccess}
+            customMounts={pendingCustomMounts}
+            onBrowseCustomPath={handleBrowseCustomPath}
+            onAddCustomMount={addCustomMount}
+            onRemoveCustomMount={removeCustomMount}
+            onUpdateCustomMount={updateCustomMount} />
 
         {:else}
           <p class="text-sm text-[var(--pd-content-text)] mb-7">

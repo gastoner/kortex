@@ -18,28 +18,61 @@ export interface CustomMount {
   ro: boolean;
 }
 
+export const fileAccessOptions: FileAccessOption[] = [
+  {
+    value: 'workspace',
+    name: 'No host filesystem access',
+    description: 'The agent cannot read or write files on your host. Use for API-only or fully remote workflows.',
+    access: 'None',
+    notes: 'Strict isolation',
+    badge: 'Recommended',
+  },
+  {
+    value: 'home',
+    name: 'Home Directory',
+    description: 'Agent can access your entire home directory (~/) and all subdirectories.',
+    access: 'Home (~)',
+    notes: 'Local development',
+  },
+  {
+    value: 'custom',
+    name: 'Custom Paths',
+    description: 'Specify exact directories the agent can access.',
+    access: 'Listed paths',
+    notes: 'Set path below',
+  },
+  {
+    value: 'full',
+    name: 'Full System Access',
+    description: 'Agent can access the entire filesystem. Use with caution.',
+    access: 'Full host',
+    notes: 'High privilege',
+  },
+];
+
 interface Props {
-  fileAccessOptions: FileAccessOption[];
   selectedFileAccess: string;
   customMounts: CustomMount[];
   onBrowseCustomPath: (index: number) => Promise<void>;
   onAddCustomMount: () => void;
   onRemoveCustomMount: (index: number) => void;
   onUpdateCustomMount: (index: number, field: keyof CustomMount, value: string | boolean) => void;
+  onchange?: (selected: string) => void;
 }
 
 let {
-  fileAccessOptions,
   selectedFileAccess = $bindable(),
   customMounts,
   onBrowseCustomPath,
   onAddCustomMount,
   onRemoveCustomMount,
   onUpdateCustomMount,
+  onchange,
 }: Props = $props();
 
 function selectOption(value: string): void {
   selectedFileAccess = value;
+  onchange?.(value);
 }
 </script>
 
