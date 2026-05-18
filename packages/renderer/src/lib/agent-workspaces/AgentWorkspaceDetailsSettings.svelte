@@ -19,7 +19,6 @@ import type {
   AgentWorkspaceMount,
 } from '/@api/agent-workspace-info';
 import { NavigationPage } from '/@api/navigation-page';
-import { ragEnvironments } from '/@/stores/rag-environments';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
 
@@ -234,6 +233,11 @@ async function saveChanges(): Promise<void> {
       await window.updateAgentWorkspaceConfiguration(workspaceId, { mcp: newMcpConfig });
       configuration = { ...configuration, mcp: newMcpConfig };
     }
+    if (hasMcpChanges) {
+      const mcpConfig = buildMcpConfig(pendingMcpIds);
+      await window.updateAgentWorkspaceConfiguration(workspaceId, { mcp: mcpConfig });
+      configuration = { ...configuration, mcp: mcpConfig };
+    }
   } catch (err: unknown) {
     await window.showMessageBox({
       title: 'Agent Workspace',
@@ -345,13 +349,10 @@ function navigateToSkills(): void {
   handleNavigation({ page: NavigationPage.SKILLS });
 }
 
-function navigateToKnowledges(): void {
-  handleNavigation({ page: NavigationPage.RAG_ENVIRONMENTS });
-}
-
 function navigateToMcp(): void {
   router.goto('/mcps');
 }
+
 </script>
 
 <div class="flex flex-row w-full h-full">

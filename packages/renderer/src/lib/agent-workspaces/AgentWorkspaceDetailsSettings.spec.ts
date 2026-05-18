@@ -30,10 +30,8 @@ import type { AgentWorkspaceConfiguration, AgentWorkspaceSummary } from '/@api/a
 import type { MCPRemoteServerInfo } from '/@api/mcp/mcp-server-info';
 import type { RagEnvironment } from '/@api/rag/rag-environment';
 import type { SkillInfo } from '/@api/skill/skill-info';
-import * as ragStore from '/@/stores/rag-environments';
 
 import AgentWorkspaceDetailsSettings from './AgentWorkspaceDetailsSettings.svelte';
-import type { RagEnvironment } from '/@api/rag/rag-environment';
 
 vi.mock(import('tinro'));
 vi.mock(import('/@/stores/skills'));
