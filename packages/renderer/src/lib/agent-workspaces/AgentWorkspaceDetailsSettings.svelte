@@ -1,11 +1,18 @@
 <script lang="ts">
+import { faWrench } from '@fortawesome/free-solid-svg-icons';
 import { Button, Input, SettingsNavItem } from '@podman-desktop/ui-svelte';
 import { router } from 'tinro';
 
+import AgentWorkspaceCreateStepFileSystem, {
+  type CustomMount,
+} from '/@/lib/agent-workspaces/AgentWorkspaceCreateStepFileSystem.svelte';
+import type { ChecklistItem } from '/@/lib/ui/ChecklistPanel.svelte';
+import ChecklistPanel from '/@/lib/ui/ChecklistPanel.svelte';
+import { handleNavigation } from '/@/navigation';
 import type { AgentWorkspaceSummaryUI } from '/@/stores/agent-workspaces.svelte';
+import { skillInfos } from '/@/stores/skills';
 import type { AgentWorkspaceConfiguration, AgentWorkspaceMount } from '/@api/agent-workspace-info';
-
-import AgentWorkspaceCreateStepFileSystem, { type CustomMount } from './AgentWorkspaceCreateStepFileSystem.svelte';
+import { NavigationPage } from '/@api/navigation-page';
 
 type SettingsSection = 'general' | 'skills' | 'mcp' | 'knowledge' | 'file-access' | 'network' | 'advanced';
 
@@ -37,7 +44,32 @@ const activeLabel = $derived(sections.find(s => s.id === activeSection)?.label ?
 
 const originalName = $derived(workspaceSummary?.name ?? '');
 let workspaceName = $state(originalName);
+
+let skillItems: ChecklistItem[] = $derived(
+  $skillInfos.map(s => ({
+    id: s.name,
+    name: s.name,
+    description: s.description,
+    group: s.managed ? 'Custom' : 'Pre-built',
+  })),
+);
+
+const originalSkillIds = $derived(
+  (configuration?.skills ?? [])
+    .map(path => $skillInfos.find(s => s.path === path)?.name)
+    .filter((name): name is string => name !== undefined),
+);
+
+let pendingSkillIds: string[] = $state([...originalSkillIds]);
+
+function onSkillsChange(updated: string[]): void {
+  pendingSkillIds = updated;
+}
+
 const hasNameChanges = $derived(workspaceName.trim() !== originalName && workspaceName.trim().length > 0);
+const hasSkillChanges = $derived(
+  pendingSkillIds.length !== originalSkillIds.length || pendingSkillIds.some(id => !originalSkillIds.includes(id)),
+);
 
 // --- File Access section state ---
 
@@ -88,8 +120,7 @@ const hasMountChanges: boolean = $derived(
         ))),
 );
 
-// --- Combined dirty state ---
-const hasChanges = $derived(hasNameChanges || hasMountChanges);
+const hasChanges = $derived(hasNameChanges || hasMountChanges || hasSkillChanges);
 
 // --- Save / Discard ---
 async function saveChanges(): Promise<void> {
@@ -104,6 +135,14 @@ async function saveChanges(): Promise<void> {
       pendingFileAccess = deriveFileAccessSelection(configuration.mounts);
       pendingCustomMounts = deriveMountsFromMounts(configuration.mounts).map(m => ({ ...m }));
     }
+    if (hasSkillChanges) {
+      const selectedPaths = pendingSkillIds
+        .map(name => $skillInfos.find(s => s.name === name)?.path)
+        .filter((path): path is string => path !== undefined);
+      const newSkills = selectedPaths.length > 0 ? selectedPaths : undefined;
+      await window.updateAgentWorkspaceConfiguration(workspaceId, { skills: newSkills });
+      configuration = { ...configuration, skills: newSkills };
+    }
   } catch (err: unknown) {
     await window.showMessageBox({
       title: 'Agent Workspace',
@@ -111,6 +150,7 @@ async function saveChanges(): Promise<void> {
       message: `Failed to save workspace settings: ${err instanceof Error ? err.message : String(err)}`,
       buttons: ['OK'],
     });
+    discardChanges();
   }
 }
 
@@ -118,6 +158,7 @@ function discardChanges(): void {
   workspaceName = originalName;
   pendingFileAccess = originalFileAccess;
   pendingCustomMounts = originalCustomMounts.map(m => ({ ...m }));
+  pendingSkillIds = [...originalSkillIds];
 }
 
 function addCustomMount(): void {
@@ -145,6 +186,10 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
       buttons: ['OK'],
     });
   }
+}
+
+function navigateToSkills(): void {
+  handleNavigation({ page: NavigationPage.SKILLS });
 }
 </script>
 
@@ -222,7 +267,22 @@ async function handleBrowseCustomPath(index: number): Promise<void> {
             onAddCustomMount={addCustomMount}
             onRemoveCustomMount={removeCustomMount}
             onUpdateCustomMount={updateCustomMount} />
-
+        {:else if activeSection === 'skills'}
+          <p class="text-sm text-[var(--pd-content-text)] mb-7">
+            Configure agent skills settings for this workspace.
+          </p>
+          <ChecklistPanel
+            title="Skills"
+            subtitle="Select the capabilities your agent should have"
+            icon={faWrench}
+            items={skillItems}
+            selected={pendingSkillIds}
+            onchange={onSkillsChange}
+            emptyMessage="No skills available yet.">
+            {#snippet headerAction()}
+              <Button type="secondary" onclick={navigateToSkills}>Manage Skills</Button>
+            {/snippet}
+          </ChecklistPanel>
         {:else}
           <p class="text-sm text-[var(--pd-content-text)] mb-7">
             Configure {activeLabel.toLowerCase()} settings for this workspace.
