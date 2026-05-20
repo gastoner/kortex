@@ -304,6 +304,22 @@ export class KdnCli {
     return this.execCLI<AgentWorkspaceId>(['workspace', 'stop', id]);
   }
 
+  /**
+   * Redact values of sensitive CLI flags so they are never printed to logs.
+   */
+  private redactSensitiveArgs(args: readonly string[]): string[] {
+    const sensitiveFlags = new Set(['--value']);
+    const redacted: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      redacted.push(args[i]!);
+      if (sensitiveFlags.has(args[i]!) && i + 1 < args.length) {
+        redacted.push('***');
+        i++;
+      }
+    }
+    return redacted;
+  }
+
   private async execCLI<T>(args: string[], options?: RunOptions): Promise<T> {
     const cliPath = this.getCliPath();
     const fullArgs = [...args, '--output', 'json'];
@@ -312,12 +328,14 @@ export class KdnCli {
       return JSON.parse(result.stdout) as T;
     } catch (err: unknown) {
       const detail = this.extractCliError(err);
-      console.error(`kdn failed: ${cliPath} ${fullArgs.join(' ')} — ${detail}`);
+      const safeArgs = this.redactSensitiveArgs(fullArgs);
+      console.error(`kdn failed: ${cliPath} ${safeArgs.join(' ')} — ${detail}`);
       throw new Error(detail);
     }
   }
 
   async createSecret(options: SecretCreateOptions): Promise<SecretName> {
+    const cliPath = this.getCliPath();
     const args = ['secret', 'create', options.name, '--type', options.type, '--value', options.value];
     if (options.description) {
       args.push('--description', options.description);
@@ -341,7 +359,19 @@ export class KdnCli {
         args.push('--env', e);
       }
     }
-    return this.execCLI<SecretName>(args);
+    const fullArgs = [...args, '--output', 'json'];
+    try {
+      const result = await this.exec.exec(cliPath, fullArgs);
+      return JSON.parse(result.stdout) as SecretName;
+    } catch (err: unknown) {
+      const detail = this.extractCliError(err);
+      if (detail.includes('already exists')) {
+        return { name: options.name };
+      }
+      const safeArgs = this.redactSensitiveArgs(fullArgs);
+      console.error(`kdn failed: ${cliPath} ${safeArgs.join(' ')} — ${detail}`);
+      throw new Error(detail);
+    }
   }
 
   async listSecrets(): Promise<SecretInfo[]> {
