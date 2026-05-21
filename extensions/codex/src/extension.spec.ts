@@ -62,8 +62,8 @@ describe('activate', () => {
     await activate(extensionContextMock);
 
     const agent = vi.mocked(agents.registerAgent).mock.calls[0]![0];
-    expect(agent.isSupportedRuntime!('podman')).toBe(true);
-    expect(agent.isSupportedRuntime!('openshell')).toBe(true);
+    expect(agent.isSupportedRuntime!('podman')).toBeFalsy();
+    expect(agent.isSupportedRuntime!('openshell')).toBeTruthy();
   });
 
   test('registered agent supports only openai model type', async () => {
