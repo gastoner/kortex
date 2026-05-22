@@ -18,9 +18,9 @@ interface Props {
   icon?: IconDefinition;
   items: readonly ChecklistItem[];
   selected?: string[];
+  onchange?: (selected: string[]) => void;
   emptyMessage?: string;
   headerAction?: Snippet;
-  onchange?: (selected: string[]) => void;
 }
 
 let {
@@ -29,9 +29,9 @@ let {
   icon,
   items,
   selected = $bindable<string[]>([]),
+  onchange,
   emptyMessage = 'No items available.',
   headerAction,
-  onchange,
 }: Props = $props();
 
 interface GroupedItems {
