@@ -28,9 +28,6 @@ export async function activate(extensionContext: ExtensionContext): Promise<void
       icon: './icon.png',
       logo: { dark: './icon.png', light: './icon.png' },
     },
-    isSupportedRuntime(runtime): boolean {
-      return runtime === 'openshell';
-    },
     isSupportedModelType(type): boolean {
       return type.name === 'openai';
     },

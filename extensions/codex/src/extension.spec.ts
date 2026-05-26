@@ -47,7 +47,6 @@ describe('activate', () => {
         description: expect.any(String),
         icon: expect.objectContaining({ icon: './icon.png' }),
         isSupportedModelType: expect.any(Function),
-        isSupportedRuntime: expect.any(Function),
       }),
     );
   });
@@ -56,14 +55,6 @@ describe('activate', () => {
     await activate(extensionContextMock);
 
     expect(extensionContextMock.subscriptions).toContain(AGENT_DISPOSABLE_MOCK);
-  });
-
-  test('registered agent supports any runtime', async () => {
-    await activate(extensionContextMock);
-
-    const agent = vi.mocked(agents.registerAgent).mock.calls[0]![0];
-    expect(agent.isSupportedRuntime!('podman')).toBeFalsy();
-    expect(agent.isSupportedRuntime!('openshell')).toBeTruthy();
   });
 
   test('registered agent supports only openai model type', async () => {
