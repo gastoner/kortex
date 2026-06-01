@@ -487,7 +487,7 @@ test('Expect Knowledge section shows checklist with available knowledge bases', 
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [
         { path: '/docs/api.md', status: 'indexed' },
         { path: '/docs/guide.md', status: 'indexed' },
@@ -528,7 +528,7 @@ test('Expect Knowledge section pre-selects knowledge matching workspace mcp conf
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [{ path: '/docs/api.md', status: 'indexed' }],
       mcpServer: {
         id: 'rag-1',
@@ -542,7 +542,7 @@ test('Expect Knowledge section pre-selects knowledge matching workspace mcp conf
     {
       name: 'Wiki',
       ragConnection: { name: 'Weaviate', providerId: 'weav-1' },
-      chunkerId: 'chunker-2',
+      chunkerConnection: { id: 'chunker-2', providerId: 'weav-1' },
       files: [],
       mcpServer: {
         id: 'rag-2',
@@ -573,7 +573,7 @@ test('Expect toggling knowledge base shows unsaved changes', async () => {
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [],
       mcpServer: {
         id: 'rag-1',
@@ -602,7 +602,7 @@ test('Expect saving knowledge changes calls updateAgentWorkspaceConfiguration', 
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [],
       mcpServer: {
         id: 'rag-1',
@@ -634,7 +634,7 @@ test('Expect saving knowledge preserves non-knowledge MCP servers', async () => 
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [],
       mcpServer: {
         id: 'rag-1',
@@ -684,7 +684,7 @@ test('Expect discarding knowledge changes resets selection', async () => {
     {
       name: 'Project Docs',
       ragConnection: { name: 'ChromaDB', providerId: 'chroma-1' },
-      chunkerId: 'chunker-1',
+      chunkerConnection: { id: 'chunker-1', providerId: 'chroma-1' },
       files: [],
       mcpServer: {
         id: 'rag-1',

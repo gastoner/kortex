@@ -16,27 +16,28 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
-import '@testing-library/jest-dom/vitest';
+import { faFolderOpen } from '@fortawesome/free-solid-svg-icons/faFolderOpen';
 
-import { render, screen } from '@testing-library/svelte';
-import { expect, test } from 'vitest';
+import { workspaceProjectInfos } from '/@/stores/workspace-projects';
 
-import type { CatalogModelInfo } from '/@/lib/models/models-utils';
+import type { NavigationRegistryEntry } from './navigation-registry';
 
-import ModelSizeColumn from './ModelSizeColumn.svelte';
+let count = $state(0);
 
-const model: CatalogModelInfo = {
-  providerId: 'gemini',
-  providerName: 'Gemini',
-  connectionId: 'conn-0',
-  connectionName: 'default',
-  type: 'cloud',
-  label: 'gemini-2.5-flash',
-  connectionStatus: 'started',
-};
+export function createNavigationProjectsEntry(): NavigationRegistryEntry {
+  workspaceProjectInfos.subscribe(projects => {
+    count = projects.length;
+  });
 
-test('should display dash placeholder for size', () => {
-  render(ModelSizeColumn, { object: model });
-
-  expect(screen.getByText('—')).toBeInTheDocument();
-});
+  const registry: NavigationRegistryEntry = {
+    name: 'Projects',
+    icon: { faIcon: { definition: faFolderOpen, size: 'lg' } },
+    link: '/projects',
+    tooltip: 'Projects',
+    type: 'entry',
+    get counter() {
+      return count;
+    },
+  };
+  return registry;
+}
